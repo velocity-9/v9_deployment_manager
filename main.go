@@ -19,15 +19,13 @@ func main() {
 			if err == github.ErrEventNotFound {
 				// ok event wasn't one of the ones asked to be parsed
 				println("Error receiving github payload")
-				fmt.Println(err)
-
 			}
+			fmt.Println(err)
+		} else {
+			fmt.Printf("Received Payload:\n")
+			push := payload.(github.PushPayload)
+			fmt.Printf("PUSH PAYLOAD:\n %+v", push)
 		}
-
-		fmt.Printf("Received Payload:\n")
-		push := payload.(github.PushPayload)
-		fmt.Printf("PUSH PAYLOAD:\n %+v", push)
-
 	})
 
 	fmt.Printf("Starting Server...\n")
