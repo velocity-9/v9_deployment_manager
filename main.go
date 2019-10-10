@@ -11,7 +11,7 @@ const (
 )
 
 func main() {
-	hook, _ := github.New(github.Options.Secret("thespeedeq!"))
+	hook, _ := github.New(github.Options.Secret("<GITHUBSECRET>"))
 
 	http.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		payload, err := hook.Parse(r, github.PushEvent)
