@@ -11,23 +11,23 @@ const (
 )
 
 func main() {
-	hook, _ := github.New(github.Options.Secret("<GITHUBSECRET>"))
+	hook, err := github.New(github.Options.Secret("<GITHUBSECRET>"))
+	if err != nil {
+		fmt.Println("github.New Error", err)
+	}
 
 	http.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		payload, err := hook.Parse(r, github.PushEvent)
 		if err != nil {
-			if err == github.ErrEventNotFound {
-				// ok event wasn't one of the ones asked to be parsed
-				println("Error receiving github payload")
-			}
-			fmt.Println(err)
-		} else {
-			fmt.Printf("Received Payload:\n")
-			push := payload.(github.PushPayload)
-			fmt.Printf("PUSH PAYLOAD:\n %+v", push)
+			fmt.Println("github payload parse failed", err)
+			return
 		}
+		fmt.Println("Received Payload:")
+		push := payload.(github.PushPayload)
+		fmt.Println("PUSH PAYLOAD:")
+		fmt.Println("%+v", push)
 	})
 
-	fmt.Printf("Starting Server...\n")
+	fmt.Println("Starting Server...")
 	http.ListenAndServe(":3069", nil)
 }
