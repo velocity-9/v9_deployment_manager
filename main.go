@@ -29,5 +29,8 @@ func main() {
 	})
 
 	fmt.Println("Starting Server...")
-	http.ListenAndServe(":3069", nil)
+	err = http.ListenAndServe(":3069", nil)
+	if err != nil {
+		fmt.Println("http.http.ListenAndServe Error", err)
+	}
 }
