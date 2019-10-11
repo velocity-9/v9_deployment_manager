@@ -25,7 +25,7 @@ func main() {
 		fmt.Println("Received Payload:")
 		push := payload.(github.PushPayload)
 		fmt.Println("PUSH PAYLOAD:")
-		fmt.Println("%+v", push)
+		fmt.Println(push)
 	})
 
 	fmt.Println("Starting Server...")
