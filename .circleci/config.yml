@@ -4,5 +4,5 @@ orbs:
 workflows:
   build:
     jobs:
-      - gotest/test
-      - gotest/lint
+      - tools/test
+      - tools/lint
