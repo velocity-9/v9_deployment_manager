@@ -25,9 +25,12 @@ func main() {
 		fmt.Println("Received Payload:")
 		push := payload.(github.PushPayload)
 		fmt.Println("PUSH PAYLOAD:")
-		fmt.Println("%+v", push)
+		fmt.Println(push)
 	})
 
 	fmt.Println("Starting Server...")
-	http.ListenAndServe(":3069", nil)
+	err = http.ListenAndServe(":3069", nil)
+	if err != nil {
+		fmt.Println("http.http.ListenAndServe Error", err)
+	}
 }

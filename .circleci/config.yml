@@ -1,0 +1,8 @@
+version: 2.1
+orbs:
+  tools: gotest/tools@0.0.11
+workflows:
+  build:
+    jobs:
+      - tools/test
+      - tools/lint
