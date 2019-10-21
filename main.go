@@ -11,7 +11,7 @@ const (
 )
 
 func main() {
-	hook, err := github.New(github.Options.Secret("<GITHUBSECRET>"))
+	hook, err := github.New(github.Options.Secret("thespeedeq"))
 	if err != nil {
 		fmt.Println("github.New Error", err)
 	}
@@ -24,8 +24,7 @@ func main() {
 		}
 		fmt.Println("Received Payload:")
 		push := payload.(github.PushPayload)
-		fmt.Println("PUSH PAYLOAD:")
-		fmt.Println(push)
+		fmt.Println("Download URL: ", getHTTPDownloadURL(push))
 	})
 
 	fmt.Println("Starting Server...")
@@ -33,4 +32,8 @@ func main() {
 	if err != nil {
 		fmt.Println("http.http.ListenAndServe Error", err)
 	}
+}
+
+func getHTTPDownloadURL(p github.PushPayload) string {
+	return p.Repository.URL + ".git"
 }
