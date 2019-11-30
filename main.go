@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 )
 
 const (
@@ -38,7 +39,7 @@ func setLogStreams(
 }
 
 func main() {
-	//Init Log streams
+	//Setup log streams
 	setLogStreams(os.Stdout, os.Stdout, os.Stderr)
 
 	hook, err := github.New(github.Options.Secret("thespeedeq"))
@@ -56,9 +57,15 @@ func main() {
 		push := payload.(github.PushPayload)
 		downloadURL := getHTTPDownloadURL(push)
 		Info.Println("Download URL:", downloadURL)
+		//Get Repo Contents
 		err = downloadRepo(downloadURL, "./test_repo")
 		if err != nil {
 			Error.Println("Error downloading repo:", err)
+		}
+		//Build .tar
+		err = buildTarFromDockerfile("test_image")
+		if err != nil {
+			Error.Println("Error building tar:", err)
 		}
 	})
 
@@ -79,4 +86,16 @@ func downloadRepo(downloadURL string, downloadLocation string) error {
 		return err
 	}
 	return nil
+}
+
+func buildTarFromDockerfile(tarName string) error {
+	//Build Docker Image Based on Dockerfile
+	cmd := exec.Command("docker", "build", "-t", tarName, "/test_repo")
+	cmd.Stdout = os.Stdout
+	err := cmd.Run()
+	tarNameExt := tarName + ".tar"
+	//Build .tar from Docker Image
+	cmd = exec.Command("docker", "save", tarName, "-o", tarNameExt)
+	cmd.Run()
+	return err
 }
