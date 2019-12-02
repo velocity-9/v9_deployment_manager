@@ -11,8 +11,9 @@ import (
 )
 
 const (
-	path = "/payload"
-	port = ":3069"
+	path     = "/payload"
+	port     = ":3069"
+	tar_name = "test"
 )
 
 var (
@@ -62,10 +63,15 @@ func main() {
 		if err != nil {
 			Error.Println("Error downloading repo:", err)
 		}
-		//Build .tar
-		err = buildTarFromDockerfile("test_image")
+		//Build image
+		err = buildImageFromDockerfile(tar_name)
 		if err != nil {
-			Error.Println("Error building tar:", err)
+			Error.Println("Error building image from Dockerfile", err)
+		}
+		//Build tar
+		err = buildTarFromImage(tar_name)
+		if err != nil {
+			Error.Println("Error building tar from image", err)
 		}
 	})
 
@@ -88,14 +94,17 @@ func downloadRepo(downloadURL string, downloadLocation string) error {
 	return nil
 }
 
-func buildTarFromDockerfile(tarName string) error {
+func buildImageFromDockerfile(tarName string) error {
 	//Build Docker Image Based on Dockerfile
-	cmd := exec.Command("docker", "build", "-t", tarName, "/test_repo")
+	cmd := exec.Command("docker", "build", "-t", tarName, "./test_repo")
 	cmd.Stdout = os.Stdout
-	err := cmd.Run()
+	return cmd.Run()
+}
+
+func buildTarFromImage(tarName string) error {
 	tarNameExt := tarName + ".tar"
 	//Build .tar from Docker Image
-	cmd = exec.Command("docker", "save", tarName, "-o", tarNameExt)
-	cmd.Run()
-	return err
+	cmd := exec.Command("docker", "save", tarName, "-o", tarNameExt)
+	cmd.Stdout = os.Stdout
+	return cmd.Run()
 }
