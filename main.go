@@ -1,6 +1,7 @@
 package main
 
 import (
+	guuid "github.com/google/uuid"
 	"github.com/hashicorp/go-getter"
 	"gopkg.in/go-playground/webhooks.v5/github"
 	"io"
@@ -8,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"strings"
 )
 
 const (
@@ -63,14 +63,14 @@ func main() {
 			Error.Println("Error downloading repo:", err)
 		}
 		// Get full repo name
-		tar_name := getFullRepoName(push)
+		tar_name := guuid.New()
 		// Build image
-		err = buildImageFromDockerfile(tar_name)
+		err = buildImageFromDockerfile(tar_name.String())
 		if err != nil {
 			Error.Println("Error building image from Dockerfile", err)
 		}
 		// Build tar
-		err = buildTarFromImage(tar_name)
+		err = buildTarFromImage(tar_name.String())
 		if err != nil {
 			Error.Println("Error building tar from image", err)
 		}
@@ -85,10 +85,6 @@ func main() {
 
 func getHTTPDownloadURL(p github.PushPayload) string {
 	return "git::" + p.Repository.URL
-}
-
-func getFullRepoName(p github.PushPayload) string {
-	return strings.Replace(p.Repository.FullName, "/", "_", -1)
 }
 
 func downloadRepo(downloadURL string, downloadLocation string) error {
