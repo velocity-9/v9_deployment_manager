@@ -8,12 +8,12 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 const (
-	path     = "/payload"
-	port     = ":3069"
-	tar_name = "test"
+	path = "/payload"
+	port = ":3069"
 )
 
 var (
@@ -26,7 +26,6 @@ func setLogStreams(
 	infoHandle io.Writer,
 	warningHandle io.Writer,
 	errorHandle io.Writer) {
-
 	Info = log.New(infoHandle,
 		"INFO: ",
 		log.Ldate|log.Ltime|log.Lshortfile)
@@ -40,7 +39,7 @@ func setLogStreams(
 }
 
 func main() {
-	//Setup log streams
+	// Setup log streams
 	setLogStreams(os.Stdout, os.Stdout, os.Stderr)
 
 	hook, err := github.New(github.Options.Secret("thespeedeq"))
@@ -58,17 +57,19 @@ func main() {
 		push := payload.(github.PushPayload)
 		downloadURL := getHTTPDownloadURL(push)
 		Info.Println("Download URL:", downloadURL)
-		//Get Repo Contents
-		err = downloadRepo(downloadURL, "./test_repo")
+		// Get Repo Contents
+		err = downloadRepo(downloadURL, "./temp_repo")
 		if err != nil {
 			Error.Println("Error downloading repo:", err)
 		}
-		//Build image
+		// Get full repo name
+		tar_name := getFullRepoName(push)
+		// Build image
 		err = buildImageFromDockerfile(tar_name)
 		if err != nil {
 			Error.Println("Error building image from Dockerfile", err)
 		}
-		//Build tar
+		// Build tar
 		err = buildTarFromImage(tar_name)
 		if err != nil {
 			Error.Println("Error building tar from image", err)
@@ -86,6 +87,10 @@ func getHTTPDownloadURL(p github.PushPayload) string {
 	return "git::" + p.Repository.URL
 }
 
+func getFullRepoName(p github.PushPayload) string {
+	return strings.Replace(p.Repository.FullName, "/", "_", -1)
+}
+
 func downloadRepo(downloadURL string, downloadLocation string) error {
 	err := getter.Get(downloadLocation, downloadURL)
 	if err != nil {
@@ -95,15 +100,15 @@ func downloadRepo(downloadURL string, downloadLocation string) error {
 }
 
 func buildImageFromDockerfile(tarName string) error {
-	//Build Docker Image Based on Dockerfile
-	cmd := exec.Command("docker", "build", "-t", tarName, "./test_repo")
+	// Build Docker Image Based on Dockerfile
+	cmd := exec.Command("docker", "build", "-t", tarName, "./temp_repo")
 	cmd.Stdout = os.Stdout
 	return cmd.Run()
 }
 
 func buildTarFromImage(tarName string) error {
 	tarNameExt := tarName + ".tar"
-	//Build .tar from Docker Image
+	// Build .tar from Docker Image
 	cmd := exec.Command("docker", "save", tarName, "-o", tarNameExt)
 	cmd.Stdout = os.Stdout
 	return cmd.Run()
