@@ -11,7 +11,7 @@ import (
 func scpToWorker(source string, dest string, tarName string) error {
 	// Use SSH key authentication from the auth package
 	// we ignore the host key in this example, please change this if you use this library
-	clientConfig, err := auth.PrivateKey("ubuntu", "/home/hank/.ssh/senior-design.pem", ssh.InsecureIgnoreHostKey())
+	clientConfig, err := auth.PrivateKey("ubuntu", "/home/ubuntu/.ssh/senior-design.pem", ssh.InsecureIgnoreHostKey())
 	if err != nil {
 		Error.Println("Error creating ssh config", err)
 		return err

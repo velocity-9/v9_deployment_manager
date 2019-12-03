@@ -13,7 +13,7 @@ import (
 
 const (
 	path = "/payload"
-	port = ":3069"
+	port = ":81"
 )
 
 var (
@@ -91,7 +91,7 @@ func main() {
 		tarNameExt = tarNameExt + ".gz"
 
 		// Send .tar to worker
-		source := "/home/hank/Desktop/go/src/v9_deployment_manager/" + tarNameExt
+		source := "/home/ubuntu/go/src/v9_deployment_manager/" + tarNameExt
 		destination := "/home/ubuntu/" + tarNameExt
 		err = scpToWorker(source, destination, tarNameExt)
 		if err != nil {
@@ -108,7 +108,7 @@ func main() {
 	})
 
 	Info.Println("Starting Server...")
-	err = http.ListenAndServe(port, nil)
+	err = http.ListenAndServe("0.0.0.0:81", nil)
 	if err != nil {
 		Error.Println("http.http.ListenAndServe Error", err)
 	}
