@@ -80,13 +80,30 @@ func main() {
 		}
 		Info.Println("Finished building tar from dockerfile")
 
+		tarNameExt := tar_name.String() + ".tar"
+		// Gzip tar
+		Info.Println("Gzipping tar...")
+		err = gzipTar(tarNameExt)
+		if err != nil {
+			Error.Println("Failure to gzip")
+			return
+		}
+		tarNameExt = tarNameExt + ".gz"
+
 		// Send .tar to worker
+		source := "/home/hank/Desktop/go/src/v9_deployment_manager/" + tarNameExt
+		destination := "/home/ubuntu/" + tarNameExt
+		err = scpToWorker(source, destination, tarNameExt)
+		if err != nil {
+			Error.Println("Error copying to worker", err)
+			return
+		}
 
 		// Activate worker
-		tarNameExt := tar_name.String() + ".tar"
-		err = activateWorker("test", tarNameExt)
+		err = activateWorker("test", destination, tarNameExt)
 		if err != nil {
 			Error.Println("Error activating worker", err)
+			return
 		}
 	})
 
@@ -122,6 +139,13 @@ func buildImageFromDockerfile(tarName string) error {
 func buildTarFromImage(tarName string) error {
 	tarNameExt := tarName + ".tar"
 	cmd := exec.Command("docker", "save", tarName, "-o", tarNameExt)
+	cmd.Stdout = os.Stdout
+	return cmd.Run()
+}
+
+// GZip tar
+func gzipTar(tarName string) error {
+	cmd := exec.Command("gzip", tarName)
 	cmd.Stdout = os.Stdout
 	return cmd.Run()
 }

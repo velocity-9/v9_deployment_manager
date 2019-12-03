@@ -3,13 +3,12 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 )
 
 const (
-	worker_url = "http://localhost:8082/meta/activate"
+	worker_url = "http://ec2-54-211-200-158.compute-1.amazonaws.com/meta/activate"
 )
 
 type dev_id struct {
@@ -31,30 +30,29 @@ func createActivateBody(user string, repo string, hash string, tarPath string, e
 	return body, err
 }
 
-// Move .tar file to worker
-
 // Activate worker
-func activateWorker(worker string, tarName string) error {
-	path := "/home/hank/Desktop/go/src/v9_deployment_manager/" + tarName
-	body, err := createActivateBody("test", "docker_archive", "test", path, "docker-archive")
+func activateWorker(worker string, tarPath string, tarName string) error {
+	body, err := createActivateBody("test", "docker_archive", "test", tarPath, "docker-archive")
 	if err != nil {
-		fmt.Println("Failed to create activation body")
+		Error.Println("Failed to create activation body", err)
 		return err
 	}
 
 	resp, err := http.Post(worker_url, "application/json", bytes.NewBuffer(body))
 	if err != nil {
-		fmt.Println("Failed to post", err)
+		Error.Println("Failed to post", err)
+		return err
 	}
 
 	defer resp.Body.Close()
 
 	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Println("Failure to parse response from worker", err)
+		Error.Println("Failure to parse response from worker", err)
+		return err
 	}
 
-	fmt.Println("Response from worker:", string(respBody))
+	Info.Println("Response from worker:", string(respBody))
 
 	return err
 
