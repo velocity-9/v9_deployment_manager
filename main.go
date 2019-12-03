@@ -57,22 +57,36 @@ func main() {
 		push := payload.(github.PushPayload)
 		downloadURL := getHTTPDownloadURL(push)
 		Info.Println("Download URL:", downloadURL)
+
 		// Get Repo Contents
 		err = downloadRepo(downloadURL, "./temp_repo")
 		if err != nil {
 			Error.Println("Error downloading repo:", err)
 		}
+
 		// Get full repo name
 		tar_name := guuid.New()
+
 		// Build image
 		err = buildImageFromDockerfile(tar_name.String())
 		if err != nil {
 			Error.Println("Error building image from Dockerfile", err)
 		}
+
 		// Build tar
 		err = buildTarFromImage(tar_name.String())
 		if err != nil {
 			Error.Println("Error building tar from image", err)
+		}
+		Info.Println("Finished building tar from dockerfile")
+
+		// Send .tar to worker
+
+		// Activate worker
+		tarNameExt := tar_name.String() + ".tar"
+		err = activateWorker("test", tarNameExt)
+		if err != nil {
+			Error.Println("Error activating worker", err)
 		}
 	})
 
@@ -83,10 +97,12 @@ func main() {
 	}
 }
 
+// Build download url
 func getHTTPDownloadURL(p github.PushPayload) string {
 	return "git::" + p.Repository.URL
 }
 
+// Download repo contents to a specific location
 func downloadRepo(downloadURL string, downloadLocation string) error {
 	err := getter.Get(downloadLocation, downloadURL)
 	if err != nil {
@@ -95,16 +111,16 @@ func downloadRepo(downloadURL string, downloadLocation string) error {
 	return nil
 }
 
+// Build Docker Image Based on Dockerfile
 func buildImageFromDockerfile(tarName string) error {
-	// Build Docker Image Based on Dockerfile
 	cmd := exec.Command("docker", "build", "-t", tarName, "./temp_repo")
 	cmd.Stdout = os.Stdout
 	return cmd.Run()
 }
 
+// Build .tar from Docker Image
 func buildTarFromImage(tarName string) error {
 	tarNameExt := tarName + ".tar"
-	// Build .tar from Docker Image
 	cmd := exec.Command("docker", "save", tarName, "-o", tarNameExt)
 	cmd.Stdout = os.Stdout
 	return cmd.Run()
