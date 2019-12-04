@@ -4,8 +4,6 @@ import (
 	guuid "github.com/google/uuid"
 	"github.com/hashicorp/go-getter"
 	"gopkg.in/go-playground/webhooks.v5/github"
-	"io"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -13,30 +11,8 @@ import (
 
 const (
 	path = "/payload"
-	port = ":81"
+	port = "0.0.0.0:81"
 )
-
-var (
-	Info    *log.Logger
-	Warning *log.Logger
-	Error   *log.Logger
-)
-
-func setLogStreams(
-	infoHandle io.Writer,
-	warningHandle io.Writer,
-	errorHandle io.Writer) {
-	Info = log.New(infoHandle,
-		"INFO: ",
-		log.Ldate|log.Ltime|log.Lshortfile)
-	Warning = log.New(infoHandle,
-		"WARNING: ",
-		log.Ldate|log.Ltime|log.Lshortfile)
-	Error = log.New(infoHandle,
-		"ERROR: ",
-		log.Ldate|log.Ltime|log.Lshortfile)
-
-}
 
 func main() {
 	// Setup log streams
@@ -68,12 +44,14 @@ func main() {
 		tar_name := guuid.New()
 
 		// Build image
+		Info.Println("Building image from Dockerfile...")
 		err = buildImageFromDockerfile(tar_name.String())
 		if err != nil {
 			Error.Println("Error building image from Dockerfile", err)
 		}
 
 		// Build tar
+		Info.Println("Building tar from Docker image...")
 		err = buildTarFromImage(tar_name.String())
 		if err != nil {
 			Error.Println("Error building tar from image", err)
@@ -100,7 +78,10 @@ func main() {
 		}
 
 		// Activate worker
-		err = activateWorker("test", destination, tarNameExt)
+		user := push.Repository.Owner.Login
+		repo := push.Repository.Name
+		dev := dev_id{user, repo, "test_hash"}
+		err = activateWorker(dev, "test", destination, tarNameExt)
 		if err != nil {
 			Error.Println("Error activating worker", err)
 			return
@@ -108,7 +89,7 @@ func main() {
 	})
 
 	Info.Println("Starting Server...")
-	err = http.ListenAndServe("0.0.0.0:81", nil)
+	err = http.ListenAndServe(port, nil)
 	if err != nil {
 		Error.Println("http.http.ListenAndServe Error", err)
 	}
