@@ -40,7 +40,7 @@ func main() {
 			Error.Println("Error downloading repo:", err)
 		}
 
-		// Get full repo name
+		// Get random tar name
 		tar_name := guuid.New()
 
 		// Build image
@@ -56,7 +56,6 @@ func main() {
 		if err != nil {
 			Error.Println("Error building tar from image", err)
 		}
-		Info.Println("Finished building tar from dockerfile")
 
 		tarNameExt := tar_name.String() + ".tar"
 		// Gzip tar
@@ -85,6 +84,16 @@ func main() {
 		if err != nil {
 			Error.Println("Error activating worker", err)
 			return
+		}
+
+		// Cleanup
+		err = os.RemoveAll("./temp_repo")
+		if err != nil {
+			Error.Println("Failed to remove temp_repo")
+		}
+		err = os.Remove("./" + tarNameExt)
+		if err != nil {
+			Error.Println("Failed to remove tar")
 		}
 	})
 
