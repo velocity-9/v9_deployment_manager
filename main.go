@@ -3,20 +3,28 @@ package main
 import (
 	guuid "github.com/google/uuid"
 	"github.com/hashicorp/go-getter"
+	"github.com/joho/godotenv"
 	"gopkg.in/go-playground/webhooks.v5/github"
 	"net/http"
 	"os"
-	"os/exec"
 )
 
-const (
-	path = "/payload"
-	port = "0.0.0.0:81"
-)
-
-func main() {
+func init() {
 	// Setup log streams
 	setLogStreams(os.Stdout, os.Stdout, os.Stderr)
+
+	//Load .env file
+	if err := godotenv.Load(); err != nil {
+		Error.Print("No .env file found")
+	}
+}
+
+func main() {
+	// Get Environment variables
+	path, port, worker := getEnvVariables()
+	if path == "" {
+		Error.Println("Error loading env variables")
+	}
 
 	hook, err := github.New(github.Options.Secret("thespeedeq"))
 	if err != nil {
@@ -39,62 +47,58 @@ func main() {
 		if err != nil {
 			Error.Println("Error downloading repo:", err)
 		}
+		defer os.RemoveAll("./temp_repo")
 
 		// Get random tar name
-		tar_name := guuid.New()
+		tarName := guuid.New().String()
 
 		// Build image
 		Info.Println("Building image from Dockerfile...")
-		err = buildImageFromDockerfile(tar_name.String())
+		err = buildImageFromDockerfile(tarName)
 		if err != nil {
 			Error.Println("Error building image from Dockerfile", err)
-		}
-
-		// Build tar
-		Info.Println("Building tar from Docker image...")
-		err = buildTarFromImage(tar_name.String())
-		if err != nil {
-			Error.Println("Error building tar from image", err)
-		}
-
-		tarNameExt := tar_name.String() + ".tar"
-		// Gzip tar
-		Info.Println("Gzipping tar...")
-		err = gzipTar(tarNameExt)
-		if err != nil {
-			Error.Println("Failure to gzip")
 			return
 		}
-		tarNameExt = tarNameExt + ".gz"
 
+		// Build and Zip Tar
+		Info.Println("Building and zipping tar...")
+		tarNameExt := buildAndZipTar(tarName)
+		if tarNameExt == "" {
+			Error.Println("Failed to build and compress tar")
+			return
+		}
 		// Send .tar to worker
-		source := "/home/ubuntu/go/src/v9_deployment_manager/" + tarNameExt
-		destination := "/home/ubuntu/" + tarNameExt
-		err = scpToWorker(source, destination, tarNameExt)
-		if err != nil {
-			Error.Println("Error copying to worker", err)
-			return
-		}
+		/*
+			Info.Println("SCP tar to worker...")
+			source := "./" + tarNameExt
+			destination := "/home/ubuntu/" + tarNameExt
+			err = scpToWorker(source, destination, tarNameExt)
+			if err != nil {
+				Error.Println("Error copying to worker", err)
+				return
+			}
+		*/
+		//FIXME remove this destination when using SCP
+		destination := "/home/hank/Desktop/go/src/v9_deployment_manager/"
+		destination += tarNameExt
 
 		// Activate worker
 		user := push.Repository.Owner.Login
 		repo := push.Repository.Name
-		dev := dev_id{user, repo, "test_hash"}
-		err = activateWorker(dev, "test", destination, tarNameExt)
+		dev := devId{user, repo, "test_hash"}
+		err = activateWorker(dev, worker, destination, tarNameExt)
 		if err != nil {
 			Error.Println("Error activating worker", err)
 			return
 		}
 
-		// Cleanup
-		err = os.RemoveAll("./temp_repo")
-		if err != nil {
-			Error.Println("Failed to remove temp_repo")
-		}
+		/* FIXME uncomment when using SCP
 		err = os.Remove("./" + tarNameExt)
 		if err != nil {
 			Error.Println("Failed to remove tar")
+			return
 		}
+		*/
 	})
 
 	Info.Println("Starting Server...")
@@ -102,6 +106,26 @@ func main() {
 	if err != nil {
 		Error.Println("http.http.ListenAndServe Error", err)
 	}
+}
+
+// Get env variables
+func getEnvVariables() (string, string, string) {
+	path, exists := os.LookupEnv("ENDPOINT")
+	if !exists {
+		Error.Println("Failed to find ENDPOINT")
+		return "", "", ""
+	}
+	port, exists := os.LookupEnv("PORT")
+	if !exists {
+		Error.Println("Failed to find PORT")
+		return "", "", ""
+	}
+	worker, exists := os.LookupEnv("WORKER")
+	if !exists {
+		Error.Println("Failed to find Worker URL")
+		return "", "", ""
+	}
+	return path, port, worker
 }
 
 // Build download url
@@ -116,26 +140,4 @@ func downloadRepo(downloadURL string, downloadLocation string) error {
 		return err
 	}
 	return nil
-}
-
-// Build Docker Image Based on Dockerfile
-func buildImageFromDockerfile(tarName string) error {
-	cmd := exec.Command("docker", "build", "-t", tarName, "./temp_repo")
-	cmd.Stdout = os.Stdout
-	return cmd.Run()
-}
-
-// Build .tar from Docker Image
-func buildTarFromImage(tarName string) error {
-	tarNameExt := tarName + ".tar"
-	cmd := exec.Command("docker", "save", tarName, "-o", tarNameExt)
-	cmd.Stdout = os.Stdout
-	return cmd.Run()
-}
-
-// GZip tar
-func gzipTar(tarName string) error {
-	cmd := exec.Command("gzip", tarName)
-	cmd.Stdout = os.Stdout
-	return cmd.Run()
 }

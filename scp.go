@@ -16,7 +16,6 @@ func scpToWorker(source string, dest string, tarName string) error {
 		Error.Println("Error creating ssh config", err)
 		return err
 	}
-	// For other authentication methods see ssh.ClientConfig and ssh.AuthMethod
 
 	// Create a new SCP client
 	client := scp.NewClientWithTimeout("ec2-54-211-200-158.compute-1.amazonaws.com:22", &clientConfig, time.Duration(100000000000))
@@ -42,7 +41,7 @@ func scpToWorker(source string, dest string, tarName string) error {
 	// Close the file after it has been copied
 	defer f.Close()
 
-	// Finaly, copy the file over
+	// Finally, copy the file over
 	// Usage: CopyFile(fileReader, remotePath, permission)
 	Info.Println("Copying " + tarName)
 	return client.CopyFile(f, dest, "0655")

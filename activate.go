@@ -7,30 +7,26 @@ import (
 	"net/http"
 )
 
-const (
-	worker_url = "http://ec2-54-211-200-158.compute-1.amazonaws.com/meta/activate"
-)
-
-type dev_id struct {
+type devId struct {
 	User string `json:"user"`
 	Repo string `json:"repo"`
 	Hash string `json:"hash"`
 }
 
 type activateRequest struct {
-	Id               dev_id `json:"id"`
-	Executable_file  string `json:"executable_file"`
-	Execution_method string `json:"execution_method"`
+	ID              devId  `json:"id"`
+	ExecutableFile  string `json:"executable_file"`
+	ExecutionMethod string `json:"execution_method"`
 }
 
 // Build activate post body
-func createActivateBody(dev dev_id, tarPath string, execution_method string) ([]byte, error) {
-	body, err := json.Marshal(activateRequest{dev, tarPath, execution_method})
+func createActivateBody(dev devId, tarPath string, executionMethod string) ([]byte, error) {
+	body, err := json.Marshal(activateRequest{dev, tarPath, executionMethod})
 	return body, err
 }
 
 // Activate worker
-func activateWorker(dev dev_id, worker string, tarPath string, tarName string) error {
+func activateWorker(dev devId, workerUrl string, tarPath string, tarName string) error {
 	// Marshal information into json body
 	body, err := createActivateBody(dev, tarPath, "docker-archive")
 	if err != nil {
@@ -38,7 +34,7 @@ func activateWorker(dev dev_id, worker string, tarPath string, tarName string) e
 		return err
 	}
 	// Make activate post request
-	resp, err := http.Post(worker_url, "application/json", bytes.NewBuffer(body))
+	resp, err := http.Post(workerUrl, "application/json", bytes.NewBuffer(body))
 	if err != nil {
 		Error.Println("Failed to post", err)
 		return err

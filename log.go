@@ -18,10 +18,10 @@ func setLogStreams(
 	Info = log.New(infoHandle,
 		"INFO: ",
 		log.Ldate|log.Ltime|log.Lshortfile)
-	Warning = log.New(infoHandle,
+	Warning = log.New(warningHandle,
 		"WARNING: ",
 		log.Ldate|log.Ltime|log.Lshortfile)
-	Error = log.New(infoHandle,
+	Error = log.New(errorHandle,
 		"ERROR: ",
 		log.Ldate|log.Ltime|log.Lshortfile)
 
