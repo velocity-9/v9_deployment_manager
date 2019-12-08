@@ -81,7 +81,7 @@ func main() {
 		// Activate worker
 		user := push.Repository.Owner.Login
 		repo := push.Repository.Name
-		dev := devId{user, repo, "test_hash"}
+		dev := devID{user, repo, "test_hash"}
 		err = activateWorker(dev, worker, destination, tarNameExt)
 		if err != nil {
 			Error.Println("Error activating worker", err)

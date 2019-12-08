@@ -7,26 +7,26 @@ import (
 	"net/http"
 )
 
-type devId struct {
+type devID struct {
 	User string `json:"user"`
 	Repo string `json:"repo"`
 	Hash string `json:"hash"`
 }
 
 type activateRequest struct {
-	ID              devId  `json:"id"`
+	ID              devID  `json:"id"`
 	ExecutableFile  string `json:"executable_file"`
 	ExecutionMethod string `json:"execution_method"`
 }
 
 // Build activate post body
-func createActivateBody(dev devId, tarPath string, executionMethod string) ([]byte, error) {
+func createActivateBody(dev devID, tarPath string, executionMethod string) ([]byte, error) {
 	body, err := json.Marshal(activateRequest{dev, tarPath, executionMethod})
 	return body, err
 }
 
 // Activate worker
-func activateWorker(dev devId, workerURL string, tarPath string, tarName string) error {
+func activateWorker(dev devID, workerURL string, tarPath string) error {
 	// Marshal information into json body
 	body, err := createActivateBody(dev, tarPath, "docker-archive")
 	if err != nil {
