@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func scpToWorker(source string, dest string, tarName string) error {
+func scpToWorker(workerUrl string, source string, dest string, tarName string) error {
 	// Use SSH key authentication from the auth package
 	// we ignore the host key in this example, please change this if you use this library
 	clientConfig, err := auth.PrivateKey("ubuntu", "/home/ubuntu/.ssh/senior-design.pem", ssh.InsecureIgnoreHostKey())
@@ -18,7 +18,8 @@ func scpToWorker(source string, dest string, tarName string) error {
 	}
 
 	// Create a new SCP client
-	client := scp.NewClientWithTimeout("ec2-54-211-200-158.compute-1.amazonaws.com:22", &clientConfig, time.Duration(100000000000))
+	workerUrl += ":22"
+	client := scp.NewClientWithTimeout(workerUrl+":22", &clientConfig, time.Duration(100000000000))
 
 	// Connect to the remote server
 	Info.Println("Connecting to worker...")

@@ -34,6 +34,7 @@ func activateWorker(dev devId, workerUrl string, tarPath string, tarName string)
 		return err
 	}
 	// Make activate post request
+	workerUrl += "/meta/activate"
 	resp, err := http.Post(workerUrl, "application/json", bytes.NewBuffer(body))
 	if err != nil {
 		Error.Println("Failed to post", err)

@@ -72,7 +72,7 @@ func main() {
 			Info.Println("SCP tar to worker...")
 			source := "./" + tarNameExt
 			destination := "/home/ubuntu/" + tarNameExt
-			err = scpToWorker(source, destination, tarNameExt)
+			err = scpToWorker(worker, source, destination, tarNameExt)
 			if err != nil {
 				Error.Println("Error copying to worker", err)
 				return
