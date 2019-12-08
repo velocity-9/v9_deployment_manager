@@ -18,4 +18,4 @@ linters:
   disable:
     - gochecknoinits
     - gochecknoglobals
-
+    - gosec

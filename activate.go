@@ -26,7 +26,7 @@ func createActivateBody(dev devId, tarPath string, executionMethod string) ([]by
 }
 
 // Activate worker
-func activateWorker(dev devId, workerUrl string, tarPath string, tarName string) error {
+func activateWorker(dev devId, workerURL string, tarPath string, tarName string) error {
 	// Marshal information into json body
 	body, err := createActivateBody(dev, tarPath, "docker-archive")
 	if err != nil {
@@ -34,8 +34,9 @@ func activateWorker(dev devId, workerUrl string, tarPath string, tarName string)
 		return err
 	}
 	// Make activate post request
-	workerUrl += "/meta/activate"
-	resp, err := http.Post(workerUrl, "application/json", bytes.NewBuffer(body))
+	workerURL = "http://" + workerURL
+	workerURL += "/meta/activate"
+	resp, err := http.Post(workerURL, "application/json", bytes.NewBuffer(body))
 	if err != nil {
 		Error.Println("Failed to post", err)
 		return err

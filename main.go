@@ -26,9 +26,9 @@ func main() {
 		Error.Println("Error loading env variables")
 	}
 
-	hook, err := github.New(github.Options.Secret("thespeedeq"))
-	if err != nil {
-		Error.Println("github.New Error:", err)
+	hook, githubErr := github.New(github.Options.Secret("thespeedeq"))
+	if githubErr != nil {
+		Error.Println("github.New Error:", githubErr)
 	}
 
 	http.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
@@ -37,12 +37,11 @@ func main() {
 			Error.Println("github payload parse error:", err)
 			return
 		}
-		Info.Println("Received Payload:")
 		push := payload.(github.PushPayload)
 		downloadURL := getHTTPDownloadURL(push)
-		Info.Println("Download URL:", downloadURL)
 
 		// Get Repo Contents
+		Info.Println("Downloading Repo...")
 		err = downloadRepo(downloadURL, "./temp_repo")
 		if err != nil {
 			Error.Println("Error downloading repo:", err)
@@ -67,20 +66,17 @@ func main() {
 			Error.Println("Failed to build and compress tar")
 			return
 		}
+		defer os.Remove("./" + tarNameExt)
+
 		// Send .tar to worker
-		/*
-			Info.Println("SCP tar to worker...")
-			source := "./" + tarNameExt
-			destination := "/home/ubuntu/" + tarNameExt
-			err = scpToWorker(worker, source, destination, tarNameExt)
-			if err != nil {
-				Error.Println("Error copying to worker", err)
-				return
-			}
-		*/
-		//FIXME remove this destination when using SCP
-		destination := "/home/hank/Desktop/go/src/v9_deployment_manager/"
-		destination += tarNameExt
+		Info.Println("SCP tar to worker...")
+		source := "./" + tarNameExt
+		destination := "/home/ubuntu/" + tarNameExt
+		err = scpToWorker(worker, source, destination, tarNameExt)
+		if err != nil {
+			Error.Println("Error copying to worker", err)
+			return
+		}
 
 		// Activate worker
 		user := push.Repository.Owner.Login
@@ -91,18 +87,10 @@ func main() {
 			Error.Println("Error activating worker", err)
 			return
 		}
-
-		/* FIXME uncomment when using SCP
-		err = os.Remove("./" + tarNameExt)
-		if err != nil {
-			Error.Println("Failed to remove tar")
-			return
-		}
-		*/
 	})
 
 	Info.Println("Starting Server...")
-	err = http.ListenAndServe(port, nil)
+	err := http.ListenAndServe(port, nil)
 	if err != nil {
 		Error.Println("http.http.ListenAndServe Error", err)
 	}
