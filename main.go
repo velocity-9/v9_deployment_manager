@@ -1,12 +1,13 @@
 package main
 
 import (
+	"net/http"
+	"os"
+
 	guuid "github.com/google/uuid"
 	"github.com/hashicorp/go-getter"
 	"github.com/joho/godotenv"
 	"gopkg.in/go-playground/webhooks.v5/github"
-	"net/http"
-	"os"
 )
 
 func init() {
@@ -82,7 +83,7 @@ func main() {
 		user := push.Repository.Owner.Login
 		repo := push.Repository.Name
 		dev := devID{user, repo, "test_hash"}
-		err = activateWorker(dev, worker, destination, tarNameExt)
+		err = activateWorker(dev, worker, destination)
 		if err != nil {
 			Error.Println("Error activating worker", err)
 			return

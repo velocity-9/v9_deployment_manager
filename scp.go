@@ -1,11 +1,12 @@
 package main
 
 import (
+	"os"
+	"time"
+
 	scp "github.com/bramvdbogaerde/go-scp"
 	"github.com/bramvdbogaerde/go-scp/auth"
 	"golang.org/x/crypto/ssh"
-	"os"
-	"time"
 )
 
 func scpToWorker(workerURL string, source string, dest string, tarName string) error {
