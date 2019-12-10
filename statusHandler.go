@@ -41,5 +41,10 @@ func (h *statusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		allStat = append(allStat, workerStatus)
 	}
 	Info.Println("Sending Status...")
-	json.NewEncoder(w).Encode(allStat)
+	err := json.NewEncoder(w).Encode(allStat)
+	if err != nil {
+		Error.Println("Failed to encode status", err)
+		return
+	}
+
 }
