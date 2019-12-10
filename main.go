@@ -20,8 +20,9 @@ func init() {
 func main() {
 	// Get Environment variables
 	CIPort, websitePort, worker := getEnvVariables()
-	if CIPort == "" || websitePort == "" || worker == "" {
+	if CIPort == "" || websitePort == "" || worker == nil {
 		Error.Println("Error loading env variables")
+		return
 	}
 
 	go func() {
@@ -33,7 +34,7 @@ func main() {
 		}
 	}()
 
-	http.Handle("/payload", &pushHandler{worker: worker})
+	http.Handle("/payload", &pushHandler{worker: worker[1]})
 	Info.Println("Starting Server...")
 	err := http.ListenAndServe(CIPort, nil)
 	if err != nil {
@@ -42,21 +43,32 @@ func main() {
 }
 
 // Get env variables
-func getEnvVariables() (string, string, string) {
+func getEnvVariables() (string, string, []string) {
 	CIPort, exists := os.LookupEnv("CI_PORT")
 	if !exists {
 		Error.Println("Failed to find CI_PORT")
-		return "", "", ""
+		return "", "", nil
 	}
 	websitePort, exists := os.LookupEnv("WEBSITE_PORT")
 	if !exists {
 		Error.Println("Failed to find WEBSITE_PORT")
-		return "", "", ""
+		return "", "", nil
 	}
-	worker, exists := os.LookupEnv("WORKER2")
+
+	workerArr := make([]string, 2, 5)
+	worker, exists := os.LookupEnv("WORKER1")
 	if !exists {
 		Error.Println("Failed to find Worker URL")
-		return "", "", ""
+		return "", "", nil
 	}
-	return CIPort, websitePort, worker
+	workerArr[0] = worker
+
+	worker, exists = os.LookupEnv("WORKER2")
+	if !exists {
+		Error.Println("Failed to find Worker URL")
+		return "", "", nil
+	}
+	workerArr[1] = worker
+
+	return CIPort, websitePort, workerArr
 }

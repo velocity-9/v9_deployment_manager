@@ -8,7 +8,7 @@ import (
 )
 
 type statusHandler struct {
-	worker string
+	worker []string
 }
 
 type status struct {
@@ -16,32 +16,30 @@ type status struct {
 	Status   string `json:"status"`
 }
 
+type allStatus []status
+
 func (h *statusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Make call out to get worker 2 status
 	Info.Println("Getting Worker Status...")
-	workerURL := "http://" + h.worker + "/meta/status"
-	resp, err := http.Get(workerURL)
-	if err != nil {
-		Error.Println("Failed to get status", err)
-		return
-	}
-	defer resp.Body.Close()
-	// Parse response
-	respBody, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		Error.Println("Failure to parse response from worker", err)
-		return
+	var allStat = allStatus{}
+	for index, worker := range h.worker {
+		Info.Println("Collecting status from worker", index+1)
+		workerURL := "http://" + worker + "/meta/status"
+		resp, err := http.Get(workerURL)
+		if err != nil {
+			Error.Println("Failed to get status", err)
+			return
+		}
+		defer resp.Body.Close()
+		// Parse response
+		respBody, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			Error.Println("Failure to parse response from worker", err)
+			return
+		}
+		workerStatus := status{WorkerID: string(index + 1), Status: string(respBody)}
+		allStat = append(allStat, workerStatus)
 	}
 	Info.Println("Sending Status...")
-	Info.Println(string(respBody))
-	stat := &status{WorkerID: "2", Status: string(respBody)}
-	workerStatus, err := json.Marshal(stat)
-	if err != nil {
-		Error.Println("Failed to convert status to JSON", err)
-	}
-	Info.Println("WorkerStatus", string(workerStatus))
-	Info.Println("stat.workerID", stat.WorkerID)
-	Info.Println("stat.status", stat.Status)
-	json.NewEncoder(w).Encode(stat)
-
+	json.NewEncoder(w).Encode(allStat)
 }
