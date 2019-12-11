@@ -3,18 +3,12 @@ package main
 import (
 	"net/http"
 	"os"
-
-	"github.com/joho/godotenv"
 )
 
 func init() {
 	// Setup log streams
 	setLogStreams(os.Stdout, os.Stdout, os.Stderr)
 
-	//Load .env file
-	if err := godotenv.Load(); err != nil {
-		Error.Print("No .env file found")
-	}
 }
 
 func main() {
