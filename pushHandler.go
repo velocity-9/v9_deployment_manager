@@ -8,13 +8,19 @@ import (
 	"gopkg.in/go-playground/webhooks.v5/github"
 )
 
+const (
+	tempRepoPath = "./temp_repo"
+)
+
 type pushHandler struct {
-	worker string
+	worker  []string
+	counter int
 }
 
 func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Parse worker param
-	worker := h.worker
+	worker := h.worker[h.counter]
+	h.counter = (h.counter + 1) % len(h.worker)
 	// Setup github webhook
 	hook, githubErr := github.New(github.Options.Secret("thespeedeq"))
 	if githubErr != nil {
@@ -31,11 +37,11 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Get Repo Contents
 	Info.Println("Downloading Repo...")
-	err = downloadRepo(downloadURL, "./temp_repo")
+	err = downloadRepo(downloadURL, tempRepoPath)
 	if err != nil {
 		Error.Println("Error downloading repo:", err)
 	}
-	defer os.RemoveAll("./temp_repo")
+	defer os.RemoveAll(tempRepoPath)
 
 	// Get random tar name
 	tarName := guuid.New().String()
@@ -71,6 +77,13 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	user := push.Repository.Owner.Login
 	repo := push.Repository.Name
 	dev := devID{user, repo, "test_hash"}
+
+	// Call deactivate to remove running component
+	// This can fail
+	for i := range h.worker {
+		deactivateWorker(dev, h.worker[i])
+	}
+
 	err = activateWorker(dev, worker, destination)
 	if err != nil {
 		Error.Println("Error activating worker", err)

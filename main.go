@@ -34,7 +34,7 @@ func main() {
 		}
 	}()
 
-	http.Handle("/payload", &pushHandler{worker: worker[1]})
+	http.Handle("/payload", &pushHandler{worker: worker, counter: 0})
 	Info.Println("Starting Server...")
 	err := http.ListenAndServe(CIPort, nil)
 	if err != nil {

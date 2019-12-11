@@ -7,35 +7,27 @@ import (
 	"net/http"
 )
 
-type devID struct {
-	User string `json:"user"`
-	Repo string `json:"repo"`
-	Hash string `json:"hash"`
-}
-
-type activateRequest struct {
-	ID              devID  `json:"id"`
-	ExecutableFile  string `json:"executable_file"`
-	ExecutionMethod string `json:"execution_method"`
+type deactivateRequest struct {
+	ID devID `json:"id"`
 }
 
 // Build activate post body
-func createActivateBody(dev devID, tarPath string, executionMethod string) ([]byte, error) {
-	body, err := json.Marshal(activateRequest{dev, tarPath, executionMethod})
+func createDeactivateBody(dev devID) ([]byte, error) {
+	body, err := json.Marshal(deactivateRequest{dev})
 	return body, err
 }
 
 // Activate worker
-func activateWorker(dev devID, workerURL string, tarPath string) error {
+func deactivateWorker(dev devID, workerURL string) error {
 	// Marshal information into json body
-	body, err := createActivateBody(dev, tarPath, "docker-archive")
+	body, err := createDeactivateBody(dev)
 	if err != nil {
 		Error.Println("Failed to create activation body", err)
 		return err
 	}
 
-	// Make activate post request
-	workerURL = "http://" + workerURL + "/meta/activate"
+	// Make deactivate post request
+	workerURL = "http://" + workerURL + "/meta/deactivate"
 	resp, err := http.Post(workerURL, "application/json", bytes.NewBuffer(body))
 	if err != nil {
 		Error.Println("Failed to post", err)

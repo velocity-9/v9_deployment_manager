@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	//	"fmt"
 	"io/ioutil"
 	"net/http"
 )
@@ -12,7 +11,7 @@ type statusHandler struct {
 }
 
 type status struct {
-	WorkerID string `json:"worker_id"`
+	WorkerID int    `json:"worker_id"`
 	Status   string `json:"status"`
 }
 
@@ -37,7 +36,7 @@ func (h *statusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Error.Println("Failure to parse response from worker", err)
 			return
 		}
-		workerStatus := status{WorkerID: string(index + 1), Status: string(respBody)}
+		workerStatus := status{WorkerID: (index + 1), Status: string(respBody)}
 		allStat = append(allStat, workerStatus)
 	}
 	Info.Println("Sending Status...")
