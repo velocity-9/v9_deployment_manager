@@ -40,6 +40,10 @@ func (h *statusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		allStat = append(allStat, workerStatus)
 	}
 	Info.Println("Sending Status...")
+
+	// FIXME: This CORS workaround cannot be in the final version
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
 	err := json.NewEncoder(w).Encode(allStat)
 	if err != nil {
 		Error.Println("Failed to encode status", err)
