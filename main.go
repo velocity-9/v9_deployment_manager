@@ -19,9 +19,9 @@ func init() {
 
 func main() {
 	// Get Environment variables
-	worker, err := getEnvVariables()
-	if err != nil {
-		Error.Println("Error loading env variables")
+	worker, envErr := getEnvVariables()
+	if envErr != nil {
+		Error.Println("Error loading env variables", envErr)
 		return
 	}
 
@@ -36,7 +36,7 @@ func main() {
 
 	http.Handle("/payload", &pushHandler{worker: worker, counter: 0})
 	Info.Println("Starting Server...")
-	err = http.ListenAndServe(CIPort, nil)
+	err := http.ListenAndServe(CIPort, nil)
 	if err != nil {
 		Error.Println("CI http.ListenAndServe Error:", err)
 	}
@@ -48,13 +48,13 @@ func getEnvVariables() ([]string, error) {
 	worker, exists := os.LookupEnv("WORKER1")
 	if !exists {
 		Error.Println("Failed to find Worker URL")
-		return nil, errors.New("Failed to find WORKER1")
+		return nil, errors.New("failed to find WORKER1")
 	}
 	workerArr[0] = worker
 	worker, exists = os.LookupEnv("WORKER2")
 	if !exists {
 		Error.Println("Failed to find Worker URL")
-		return nil, errors.New("Failed to find WORKER2")
+		return nil, errors.New("failed to find WORKER2")
 	}
 	workerArr[1] = worker
 	return workerArr, nil
