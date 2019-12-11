@@ -56,8 +56,8 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Build and Zip Tar
 	Info.Println("Building and zipping tar...")
-	tarNameExt := buildAndZipTar(tarName)
-	if tarNameExt == "" {
+	tarNameExt, err := buildAndZipTar(tarName)
+	if err != nil {
 		Error.Println("Failed to build and compress tar")
 		return
 	}

@@ -26,13 +26,13 @@ func gzipTar(tarName string) error {
 }
 
 // Build and Zip tar
-func buildAndZipTar(tarName string) string {
+func buildAndZipTar(tarName string) (string, error) {
 	// Build tar
 	Info.Println("Building tar from Docker image...")
 	err := buildTarFromImage(tarName)
 	if err != nil {
 		Error.Println("Error building tar from image", err)
-		return ""
+		return "", err
 	}
 
 	tarNameExt := tarName + ".tar"
@@ -41,8 +41,8 @@ func buildAndZipTar(tarName string) string {
 	err = gzipTar(tarNameExt)
 	if err != nil {
 		Error.Println("Failure to gzip")
-		return ""
+		return "", err
 	}
 	tarNameExt += ".gz"
-	return tarNameExt
+	return tarNameExt, nil
 }
