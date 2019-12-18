@@ -19,7 +19,7 @@ func init() {
 
 func main() {
 	// Get Environment variables
-	worker, envErr := getEnvVariables()
+	workers, envErr := getEnvVariables()
 	if envErr != nil {
 		Error.Println("Error loading env variables", envErr)
 		return
@@ -27,14 +27,14 @@ func main() {
 
 	go func() {
 		Info.Println("Starting status handler...")
-		http.Handle("/status", &statusHandler{worker: worker})
+		http.Handle("/status", &statusHandler{workers: workers})
 		err := http.ListenAndServe(websitePort, nil)
 		if err != nil {
 			Error.Println("Status http.ListenAndServer Error:", err)
 		}
 	}()
 
-	http.Handle("/payload", &pushHandler{worker: worker, counter: 0})
+	http.Handle("/payload", &pushHandler{workers: workers, counter: 0})
 	Info.Println("Starting Server...")
 	err := http.ListenAndServe(CIPort, nil)
 	if err != nil {

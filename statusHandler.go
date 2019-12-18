@@ -7,7 +7,7 @@ import (
 )
 
 type statusHandler struct {
-	worker []string
+	workers []string
 }
 
 type status struct {
@@ -21,7 +21,7 @@ func (h *statusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Make call out to get worker 2 status
 	Info.Println("Getting Worker Status...")
 	var allStat = allStatus{}
-	for index, worker := range h.worker {
+	for index, worker := range h.workers {
 		Info.Println("Collecting status from worker", index+1)
 		workerURL := "http://" + worker + "/meta/status"
 		resp, err := http.Get(workerURL)
@@ -30,10 +30,10 @@ func (h *statusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		defer resp.Body.Close()
-		// Parse response
+		// Read response
 		respBody, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			Error.Println("Failure to parse response from worker", err)
+			Error.Println("Failure to read response from worker", err)
 			return
 		}
 		workerStatus := status{WorkerID: (index + 1), Status: string(respBody)}

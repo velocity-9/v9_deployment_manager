@@ -7,12 +7,6 @@ import (
 	"net/http"
 )
 
-type devID struct {
-	User string `json:"user"`
-	Repo string `json:"repo"`
-	Hash string `json:"hash"`
-}
-
 type activateRequest struct {
 	ID              devID  `json:"id"`
 	ExecutableFile  string `json:"executable_file"`

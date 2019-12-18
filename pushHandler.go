@@ -8,19 +8,15 @@ import (
 	"gopkg.in/go-playground/webhooks.v5/github"
 )
 
-const (
-	tempRepoPath = "./temp_repo"
-)
-
 type pushHandler struct {
-	worker  []string
+	workers []string
 	counter int
 }
 
 func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Parse worker param
-	worker := h.worker[h.counter]
-	h.counter = (h.counter + 1) % len(h.worker)
+	worker := h.workers[h.counter]
+	h.counter = (h.counter + 1) % len(h.workers)
 	// Setup github webhook
 	hook, githubErr := github.New(github.Options.Secret("thespeedeq"))
 	if githubErr != nil {
@@ -79,8 +75,8 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	dev := devID{user, repo, "test_hash"}
 
 	// Call deactivate to remove running component
-	for i := range h.worker {
-		err = deactivateWorker(dev, h.worker[i])
+	for i := range h.workers {
+		err = deactivateWorker(dev, h.workers[i])
 		if err != nil {
 			Info.Println("Failed to deactivate worker:", i, err)
 			// This can fail and should fall through

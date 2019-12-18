@@ -20,7 +20,8 @@ func scpToWorker(workerURL string, source string, dest string, tarName string) e
 
 	// Create a new SCP client
 	workerURL += ":22"
-	client := scp.NewClientWithTimeout(workerURL, &clientConfig, time.Duration(100000000000))
+	// Timeout after 5 minutes
+	client := scp.NewClientWithTimeout(workerURL, &clientConfig, time.Duration(300000000000))
 
 	// Connect to the remote server
 	Info.Println("Connecting to worker...")
@@ -46,5 +47,6 @@ func scpToWorker(workerURL string, source string, dest string, tarName string) e
 	// Finally, copy the file over
 	// Usage: CopyFile(fileReader, remotePath, permission)
 	Info.Println("Copying " + tarName)
-	return client.CopyFile(f, dest, "0655")
+	// read/write for owner/group, and read only for everyone else
+	return client.CopyFile(f, dest, "0664")
 }

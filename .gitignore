@@ -12,3 +12,6 @@
 *.out
 
 v9_deployment_manager
+env.sh
+run.sh
+
