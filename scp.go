@@ -47,6 +47,6 @@ func scpToWorker(workerURL string, source string, dest string, tarName string) e
 	// Finally, copy the file over
 	// Usage: CopyFile(fileReader, remotePath, permission)
 	Info.Println("Copying " + tarName)
-	// read/write for owner/group, and read only for everyone else
+	// 0664 = read/write for owner/group, and read only for everyone else
 	return client.CopyFile(f, dest, "0664")
 }
