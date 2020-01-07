@@ -15,26 +15,22 @@ type status struct {
 	Status   string `json:"status"`
 }
 
-type allStatus []status
-
 func (h *statusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Make call out to get worker 2 status
 	Info.Println("Getting Worker Status...")
-	var allStat = allStatus{}
+	var allStat []status
 	for index, worker := range h.workers {
 		Info.Println("Collecting status from worker", index+1)
 		workerURL := "http://" + worker + "/meta/status"
 		resp, err := http.Get(workerURL)
 		if err != nil {
 			Error.Println("Failed to get status", err)
-			return
 		}
 		defer resp.Body.Close()
 		// Read response
 		respBody, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			Error.Println("Failure to read response from worker", err)
-			return
 		}
 		workerStatus := status{WorkerID: (index + 1), Status: string(respBody)}
 		allStat = append(allStat, workerStatus)

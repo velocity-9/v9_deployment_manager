@@ -17,8 +17,14 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Parse worker param
 	worker := h.workers[h.counter]
 	h.counter = (h.counter + 1) % len(h.workers)
+	// Load secret from env
+	secret, exists := os.LookupEnv("GITHUB_SECRET")
+	if !exists {
+		Error.Println("Failed to find Github secret")
+		return
+	}
 	// Setup github webhook
-	hook, githubErr := github.New(github.Options.Secret("thespeedeq"))
+	hook, githubErr := github.New(github.Options.Secret(secret))
 	if githubErr != nil {
 		Error.Println("github.New Error:", githubErr)
 	}
@@ -54,7 +60,7 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	Info.Println("Building and zipping tar...")
 	tarNameExt, err := buildAndZipTar(tarName)
 	if err != nil {
-		Error.Println("Failed to build and compress tar")
+		Error.Println("Failed to build and compress tar", err)
 		return
 	}
 	defer os.Remove("./" + tarNameExt)

@@ -40,7 +40,7 @@ func buildAndZipTar(tarName string) (string, error) {
 	Info.Println("Gzipping tar...")
 	err = gzipTar(tarNameExt)
 	if err != nil {
-		Error.Println("Failure to gzip")
+		Error.Println("Failure to gzip", err)
 		return "", err
 	}
 	tarNameExt += ".gz"

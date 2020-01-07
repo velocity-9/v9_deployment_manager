@@ -31,15 +31,15 @@ func scpToWorker(workerURL string, source string, dest string, tarName string) e
 		return err
 	}
 
+	// Close client connection after the file has been copied
+	defer client.Close()
+
 	// Open a file
 	f, err := os.Open(source)
 	if err != nil {
 		Error.Println("Error opening source file scp", err)
 		return err
 	}
-
-	// Close client connection after the file has been copied
-	defer client.Close()
 
 	// Close the file after it has been copied
 	defer f.Close()

@@ -24,8 +24,8 @@ func main() {
 		websitePort = ":3080"
 	}
 
-	// Get Environment variables
-	workers, envErr := getEnvVariables()
+	// Get workers from env
+	workers, envErr := getWorkers()
 	if envErr != nil {
 		Error.Println("Error loading env variables", envErr)
 		return
@@ -51,8 +51,8 @@ func main() {
 }
 
 // Get env variables
-func getEnvVariables() ([]string, error) {
-	workerString, exists := os.LookupEnv("WORKERS")
+func getWorkers() ([]string, error) {
+	workerString, exists := os.LookupEnv("V9_WORKERS")
 	if !exists {
 		Error.Println("Failed to find Worker URLs")
 		return nil, errors.New("failed to find WORKERS")
