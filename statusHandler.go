@@ -18,7 +18,7 @@ type status struct {
 func (h *statusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Make call out to get worker 2 status
 	Info.Println("Getting Worker Status...")
-	var allStat []status
+	var allStat []status = make([]status, len(h.workers))
 	for index, worker := range h.workers {
 		Info.Println("Collecting status from worker", index+1)
 		workerURL := "http://" + worker + "/meta/status"
@@ -33,7 +33,7 @@ func (h *statusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Error.Println("Failure to read response from worker", err)
 		}
 		workerStatus := status{WorkerID: (index + 1), Status: string(respBody)}
-		allStat = append(allStat, workerStatus)
+		allStat[index] = workerStatus
 	}
 	Info.Println("Sending Status...")
 
