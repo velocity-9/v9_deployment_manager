@@ -81,13 +81,7 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	dev := devID{user, repo, "test_hash"}
 
 	// Call deactivate to remove running component
-	for i := range h.workers {
-		err = deactivateWorker(dev, h.workers[i])
-		if err != nil {
-			Info.Println("Failed to deactivate worker:", i, err)
-			// This can fail and should fall through
-		}
-	}
+	deactivateComponent(dev, h.workers)
 
 	err = activateWorker(dev, worker, destination)
 	if err != nil {

@@ -17,8 +17,8 @@ func createDeactivateBody(dev devID) ([]byte, error) {
 	return body, err
 }
 
-// Activate worker
-func deactivateWorker(dev devID, workerURL string) error {
+// Deactivate individual component
+func deactivateIndividualComponent(dev devID, workerURL string) error {
 	// Marshal information into json body
 	body, err := createDeactivateBody(dev)
 	if err != nil {
@@ -43,4 +43,16 @@ func deactivateWorker(dev devID, workerURL string) error {
 
 	Info.Println("Response from worker:", string(respBody))
 	return nil
+}
+
+// Deactivate component
+
+func deactivateComponent(dev devID, workers []string) {
+	for i := range workers {
+		err := deactivateIndividualComponent(dev, workers[i])
+		if err != nil {
+			Info.Println("Failed to deactivate worker:", i, err)
+			// This can fail and should fall through
+		}
+	}
 }
