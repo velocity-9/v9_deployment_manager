@@ -4,5 +4,6 @@ orbs:
 workflows:
   build:
     jobs:
+      - tools/install-golangci-lint:{prefix:"v9"}
       - tools/test
       - tools/lint
