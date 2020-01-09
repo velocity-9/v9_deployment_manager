@@ -5,5 +5,4 @@ workflows:
   build:
     jobs:
       - tools/test
-      - tools/lint:
-           golangci-lint-version:"1.18.0"
+      - tools/lint: {golangci-lint-version: 1.18.0}
