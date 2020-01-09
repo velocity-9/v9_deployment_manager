@@ -1,6 +1,6 @@
 version: 2.1
 orbs:
-  tools: gotest/tools@0.0.11
+  tools: gotest/tools@0.0.13
 workflows:
   build:
     jobs:
