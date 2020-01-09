@@ -19,4 +19,5 @@ linters:
     - gochecknoinits
     - gochecknoglobals
     - gosec
+    - funlen
 
