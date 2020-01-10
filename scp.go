@@ -21,7 +21,7 @@ func scpToWorker(workerURL string, source string, dest string, tarName string) e
 	// Create a new SCP client
 	workerURL += ":22"
 	// Timeout after 5 minutes
-	client := scp.NewClientWithTimeout(workerURL, &clientConfig, time.Duration(300000000000))
+	client := scp.NewClientWithTimeout(workerURL, &clientConfig, (5 * time.Minute))
 
 	// Connect to the remote server
 	Info.Println("Connecting to worker...")
