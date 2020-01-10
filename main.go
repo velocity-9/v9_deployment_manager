@@ -19,7 +19,7 @@ func main() {
 	websitePort := "0.0.0.0:80"
 
 	// Check for development flag
-	if len(os.Args) > 1 && os.Args[1] == "--development" {
+	if len(os.Args) > 1 && contains(os.Args, "--development") {
 		CIPort = ":3081"
 		websitePort = ":3080"
 	}
@@ -59,4 +59,14 @@ func getWorkers() ([]string, error) {
 	}
 	workerArr := strings.Split(workerString, ";")
 	return workerArr, nil
+}
+
+//Contains FIXME this should be in the helper class
+func contains(arr []string, str string) bool {
+	for _, a := range arr {
+		if a == str {
+			return true
+		}
+	}
+	return false
 }
