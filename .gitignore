@@ -12,6 +12,7 @@
 *.out
 
 v9_deployment_manager
+# These two scripts are for deployment on ec2 and should not be tracked
 env.sh
 run.sh
 
