@@ -37,20 +37,24 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	push := payload.(github.PushPayload)
 	downloadURL := getHTTPDownloadURL(push)
 
+	/*
+		Get random tar name
+		This is done early to have a unique temporary directory
+	*/
+	tarName := guuid.New().String()
+
 	// Get Repo Contents
 	Info.Println("Downloading Repo...")
+	tempRepoPath := "./" + tarName
 	err = downloadRepo(downloadURL, tempRepoPath)
 	if err != nil {
 		Error.Println("Error downloading repo:", err)
 	}
 	defer os.RemoveAll(tempRepoPath)
 
-	// Get random tar name
-	tarName := guuid.New().String()
-
 	// Build image
 	Info.Println("Building image from Dockerfile...")
-	err = buildImageFromDockerfile(tarName)
+	err = buildImageFromDockerfile(tarName, tempRepoPath)
 	if err != nil {
 		Error.Println("Error building image from Dockerfile", err)
 		return
