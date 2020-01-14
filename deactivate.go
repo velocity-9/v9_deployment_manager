@@ -29,12 +29,12 @@ func deactivateIndividualComponent(dev devID, workerURL string) error {
 	// Make deactivate post request
 	workerURL = "http://" + workerURL + "/meta/deactivate"
 	resp, err := http.Post(workerURL, "application/json", bytes.NewBuffer(body))
+	defer resp.Body.Close()
 	if err != nil {
 		Error.Println("Failed to post", err)
 		return err
 	}
 
-	defer resp.Body.Close()
 	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		Error.Println("Failure to parse response from worker", err)

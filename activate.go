@@ -31,12 +31,12 @@ func activateWorker(dev devID, workerURL string, tarPath string) error {
 	// Make activate post request
 	workerURL = "http://" + workerURL + "/meta/activate"
 	resp, err := http.Post(workerURL, "application/json", bytes.NewBuffer(body))
+	defer resp.Body.Close()
 	if err != nil {
 		Error.Println("Failed to post", err)
 		return err
 	}
 
-	defer resp.Body.Close()
 	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		Error.Println("Failure to parse response from worker", err)
