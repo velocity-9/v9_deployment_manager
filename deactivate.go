@@ -33,8 +33,8 @@ func deactivateIndividualComponent(dev devID, workerURL string) error {
 		Error.Println("Failed to post", err)
 		return err
 	}
-
 	defer resp.Body.Close()
+
 	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		Error.Println("Failure to parse response from worker", err)

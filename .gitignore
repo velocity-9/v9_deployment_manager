@@ -12,6 +12,7 @@
 *.out
 
 v9_deployment_manager
-env.sh
-run.sh
 
+# Scripts for deploying on ec2
+run.sh
+env.sh
