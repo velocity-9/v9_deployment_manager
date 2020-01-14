@@ -10,3 +10,9 @@
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+
+v9_deployment_manager
+
+# Scripts for deploying on ec2
+run.sh
+env.sh
