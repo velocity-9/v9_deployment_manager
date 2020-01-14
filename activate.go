@@ -35,8 +35,8 @@ func activateWorker(dev devID, workerURL string, tarPath string) error {
 		Error.Println("Failed to post", err)
 		return err
 	}
-
 	defer resp.Body.Close()
+
 	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		Error.Println("Failure to parse response from worker", err)
