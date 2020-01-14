@@ -1,82 +1,72 @@
 package main
 
 import (
-	"github.com/hashicorp/go-getter"
-	"gopkg.in/go-playground/webhooks.v5/github"
-	"io"
-	"log"
+	"errors"
 	"net/http"
 	"os"
+	"strings"
 )
 
-const (
-	path = "/payload"
-	port = ":3069"
-)
-
-var (
-	Info    *log.Logger
-	Warning *log.Logger
-	Error   *log.Logger
-)
-
-func setLogStreams(
-	infoHandle io.Writer,
-	warningHandle io.Writer,
-	errorHandle io.Writer) {
-
-	Info = log.New(infoHandle,
-		"INFO: ",
-		log.Ldate|log.Ltime|log.Lshortfile)
-	Warning = log.New(infoHandle,
-		"WARNING: ",
-		log.Ldate|log.Ltime|log.Lshortfile)
-	Error = log.New(infoHandle,
-		"ERROR: ",
-		log.Ldate|log.Ltime|log.Lshortfile)
+func init() {
+	// Setup log streams
+	setLogStreams(os.Stdout, os.Stdout, os.Stderr)
 
 }
 
 func main() {
-	//Init Log streams
-	setLogStreams(os.Stdout, os.Stdout, os.Stderr)
+	//Initialize default ports
+	CIPort := "0.0.0.0:81"
+	websitePort := "0.0.0.0:80"
 
-	hook, err := github.New(github.Options.Secret("thespeedeq"))
-	if err != nil {
-		Error.Println("github.New Error:", err)
+	// Check for development flag
+	if len(os.Args) > 1 && contains(os.Args, "--development") {
+		CIPort = ":3081"
+		websitePort = ":3080"
 	}
 
-	http.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
-		payload, err := hook.Parse(r, github.PushEvent)
-		if err != nil {
-			Error.Println("github payload parse error:", err)
-			return
-		}
-		Info.Println("Received Payload:")
-		push := payload.(github.PushPayload)
-		downloadURL := getHTTPDownloadURL(push)
-		Info.Println("Download URL:", downloadURL)
-		err = downloadRepo(downloadURL, "./test_repo")
-		if err != nil {
-			Error.Println("Error downloading repo:", err)
-		}
-	})
+	// Get workers from env
+	workers, envErr := getWorkers()
+	if envErr != nil {
+		Error.Println("Error loading env variables", envErr)
+		return
+	}
 
+	Info.Println("CIPort", CIPort, "websitePort", websitePort, "workers", workers)
+
+	go func() {
+		Info.Println("Starting status handler...")
+		http.Handle("/status", &statusHandler{workers: workers})
+		err := http.ListenAndServe(websitePort, nil)
+		if err != nil {
+			Error.Println("Status http.ListenAndServer Error:", err)
+		}
+	}()
+
+	http.Handle("/payload", &pushHandler{workers: workers, counter: 0})
 	Info.Println("Starting Server...")
-	err = http.ListenAndServe(port, nil)
+	err := http.ListenAndServe(CIPort, nil)
 	if err != nil {
-		Error.Println("http.http.ListenAndServe Error", err)
+		Error.Println("CI http.ListenAndServe Error:", err)
 	}
 }
 
-func getHTTPDownloadURL(p github.PushPayload) string {
-	return "git::" + p.Repository.URL
+// Get env variables
+func getWorkers() ([]string, error) {
+	workerString, exists := os.LookupEnv("V9_WORKERS")
+	if !exists {
+		Error.Println("Failed to find Worker URLs")
+		return nil, errors.New("failed to find WORKERS")
+	}
+	workerArr := strings.Split(workerString, ";")
+	return workerArr, nil
 }
 
-func downloadRepo(downloadURL string, downloadLocation string) error {
-	err := getter.Get(downloadLocation, downloadURL)
-	if err != nil {
-		return err
+//Contains FIXME this should be in the helper class
+func contains(arr []string, str string) bool {
+	for _, a := range arr {
+		if a == str {
+			return true
+		}
 	}
-	return nil
+	return false
 }
