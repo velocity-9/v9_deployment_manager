@@ -37,10 +37,8 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	push := payload.(github.PushPayload)
 	downloadURL := getHTTPDownloadURL(push)
 
-	/*
-		Get random tar name
-		This is done early to have a unique temporary directory
-	*/
+	// Get random tar name
+	// This is done early to have a unique temporary directory
 	tarName := guuid.New().String()
 
 	// Get Repo Contents
