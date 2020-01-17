@@ -6,7 +6,7 @@ import (
 )
 
 // Build Docker Image Based on Dockerfile
-func buildImageFromDockerfile(tarName string) error {
+func buildImageFromDockerfile(tarName string, tempRepoPath string) error {
 	cmd := exec.Command("docker", "build", "-t", tarName, tempRepoPath)
 	return cmd.Run()
 }
