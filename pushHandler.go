@@ -45,7 +45,7 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Get Repo Contents
 	Info.Println("Downloading Repo...")
-	tempRepoPath := "./" + tarName
+	tempRepoPath := "./git_" + tarName
 	err = downloadRepo(downloadURL, tempRepoPath)
 	if err != nil {
 		Error.Println("Error downloading repo:", err)
