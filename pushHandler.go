@@ -9,7 +9,7 @@ import (
 )
 
 type pushHandler struct {
-	workers []string
+	workers []*V9Worker
 	counter int
 }
 
@@ -71,7 +71,7 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	Info.Println("SCP tar to worker...")
 	source := "./" + tarNameExt
 	destination := "/home/ubuntu/" + tarNameExt
-	err = scpToWorker(worker, source, destination, tarNameExt)
+	err = scpToWorker(worker.url, source, destination, tarNameExt)
 	if err != nil {
 		Error.Println("Error copying to worker", err)
 		return
@@ -80,12 +80,12 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Activate worker
 	user := push.Repository.Owner.Login
 	repo := push.Repository.Name
-	dev := devID{user, repo, "test_hash"}
+	compId := componentId{user, repo, "test_hash"}
 
 	// Call deactivate to remove running component
-	deactivateComponent(dev, h.workers)
+	DeactivateComponentEverywhere(compId, h.workers)
 
-	err = activateWorker(dev, worker, destination)
+	err = worker.Activate(compId, destination)
 	if err != nil {
 		Error.Println("Error activating worker", err)
 		return
