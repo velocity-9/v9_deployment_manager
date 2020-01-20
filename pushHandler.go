@@ -40,21 +40,19 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var user string
 	var repo string
 	// Send to Installation Handler if needed
-	switch payload.(type) {
+	switch payload := payload.(type) {
 	case github.InstallationPayload:
 		Info.Println("Received Github App Installation Event...")
 		Info.Println("Starting first time deployment...")
-		parsedPayload := payload.(github.InstallationPayload)
-		downloadURL = getHTTPDownloadURLInstallation(parsedPayload)
-		user = parsedPayload.Installation.Account.Login
-		repo = parsedPayload.Repositories[0].Name
+		downloadURL = getHTTPDownloadURLInstallation(payload)
+		user = payload.Installation.Account.Login
+		repo = payload.Repositories[0].Name
 	case github.InstallationRepositoriesPayload:
 		Info.Println("Received Github InstallationRepositories Event...")
 		Info.Println("Starting first time deployment...")
-		parsedPayload := payload.(github.InstallationRepositoriesPayload)
-		downloadURL = getHTTPDownloadURLInstallationRepositories(parsedPayload)
-		user = parsedPayload.Installation.Account.Login
-		repo = parsedPayload.RepositoriesAdded[0].Name
+		downloadURL = getHTTPDownloadURLInstallationRepositories(payload)
+		user = payload.Installation.Account.Login
+		repo = payload.RepositoriesAdded[0].Name
 	default:
 		parsedPayload := payload.(github.PushPayload)
 		downloadURL = getHTTPDownloadURLPush(parsedPayload)
