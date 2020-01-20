@@ -29,7 +29,7 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Error.Println("github.New Error:", githubErr)
 	}
 	// Parse push event or installation event from webhook
-	// Note: IntegrationInstallation and IntegrationInstallationRepositoriesEvents are ignored becuase they cause duplicate deployments
+	// Note: integration events from github are ignored
 	payload, err := hook.Parse(r, github.PushEvent, github.InstallationEvent, github.InstallationRepositoriesEvent)
 	if err != nil {
 		Error.Println("github payload parse error:", err)
@@ -62,10 +62,6 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		repo = parsedPayload.Repository.Name
 	}
 	dev := devID{user, repo, "test_hash"}
-
-	// Get random tar name
-	// This is done early to have a unique temporary directory
-	tarName := guuid.New().String()
 
 	// Get random tar name
 	// This is done early to have a unique temporary directory
