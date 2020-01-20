@@ -5,7 +5,7 @@ import (
 	"os"
 
 	guuid "github.com/google/uuid"
-	"gopkg.in/go-playground/webhooks.v5/github"
+	"github.com/hjaensch7/webhooks/github"
 )
 
 type pushHandler struct {
@@ -28,14 +28,40 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if githubErr != nil {
 		Error.Println("github.New Error:", githubErr)
 	}
-	// Parse push event from webhook
-	payload, err := hook.Parse(r, github.PushEvent)
+	// Parse push event or installation event from webhook
+	// Note: IntegrationInstallation and IntegrationInstallationRepositoriesEvents are ignored becuase they cause duplicate deployments
+	payload, err := hook.Parse(r, github.PushEvent, github.InstallationEvent, github.InstallationRepositoriesEvent)
 	if err != nil {
 		Error.Println("github payload parse error:", err)
 		return
 	}
-	push := payload.(github.PushPayload)
-	downloadURL := getHTTPDownloadURL(push)
+	// Declare repo info vars
+	var downloadURL string
+	var user string
+	var repo string
+	// Send to Installation Handler if needed
+	switch payload.(type) {
+	case github.InstallationPayload:
+		Info.Println("Received Github App Installation Event...")
+		Info.Println("Starting first time deployment...")
+		parsedPayload := payload.(github.InstallationPayload)
+		downloadURL = getHTTPDownloadURLInstallation(parsedPayload)
+		user = parsedPayload.Installation.Account.Login
+		repo = parsedPayload.Repositories[0].Name
+	case github.InstallationRepositoriesPayload:
+		Info.Println("Received Github InstallationRepositories Event...")
+		Info.Println("Starting first time deployment...")
+		parsedPayload := payload.(github.InstallationRepositoriesPayload)
+		downloadURL = getHTTPDownloadURLInstallationRepositories(parsedPayload)
+		user = parsedPayload.Installation.Account.Login
+		repo = parsedPayload.RepositoriesAdded[0].Name
+	default:
+		parsedPayload := payload.(github.PushPayload)
+		downloadURL = getHTTPDownloadURLPush(parsedPayload)
+		user = parsedPayload.Repository.Owner.Login
+		repo = parsedPayload.Repository.Name
+	}
+	dev := devID{user, repo, "test_hash"}
 
 	// Get random tar name
 	// This is done early to have a unique temporary directory
@@ -76,11 +102,6 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Error.Println("Error copying to worker", err)
 		return
 	}
-
-	// Activate worker
-	user := push.Repository.Owner.Login
-	repo := push.Repository.Name
-	dev := devID{user, repo, "test_hash"}
 
 	// Call deactivate to remove running component
 	deactivateComponent(dev, h.workers)

@@ -2,12 +2,20 @@ package main
 
 import (
 	"github.com/hashicorp/go-getter"
-	"gopkg.in/go-playground/webhooks.v5/github"
+	"github.com/hjaensch7/webhooks/github"
 )
 
 // Build download url
-func getHTTPDownloadURL(p github.PushPayload) string {
+func getHTTPDownloadURLPush(p github.PushPayload) string {
 	return "git::" + p.Repository.URL
+}
+
+func getHTTPDownloadURLInstallation(p github.InstallationPayload) string {
+	return "git::" + "https://github.com/" + p.Repositories[0].FullName
+}
+
+func getHTTPDownloadURLInstallationRepositories(p github.InstallationRepositoriesPayload) string {
+	return "git::" + "https://github.com/" + p.RepositoriesAdded[0].FullName
 }
 
 // Download repo contents to a specific location
