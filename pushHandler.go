@@ -67,6 +67,10 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// This is done early to have a unique temporary directory
 	tarName := guuid.New().String()
 
+	// Get random tar name
+	// This is done early to have a unique temporary directory
+	tarName := guuid.New().String()
+
 	// Get Repo Contents
 	Info.Println("Downloading Repo...")
 	tempRepoPath := "./git_" + tarName
