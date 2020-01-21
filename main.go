@@ -12,7 +12,6 @@ import (
 func init() {
 	// Setup log streams
 	setLogStreams(os.Stdout, os.Stdout, os.Stderr)
-
 }
 
 func main() {
@@ -73,10 +72,10 @@ func getWorkers() ([]*V9Worker, error) {
 	}
 
 	workerUrls := strings.Split(workerString, ";")
-	var workers []*V9Worker
+	var workers = make([]*V9Worker, len(workerUrls))
 
-	for _, url := range workerUrls {
-		workers = append(workers, &V9Worker{url: url})
+	for i, url := range workerUrls {
+		workers[i] = &V9Worker{url: url}
 	}
 	return workers, nil
 }
@@ -93,7 +92,7 @@ func getPsqlInfo() (string, error) {
 	}
 	pgPort, err := strconv.Atoi(pgPortString)
 	if err != nil {
-		return "", fmt.Errorf("V9_PG_PORT must be a valid integer, was %s: %w", pgPortString, err)
+		return "", fmt.Errorf("err: V9_PG_PORT must be a valid integer, was %s: %w", pgPortString, err)
 	}
 
 	pgUser, err := getEnvVar("V9_PG_USER")

@@ -24,5 +24,4 @@ func setLogStreams(
 	Error = log.New(errorHandle,
 		"ERROR: ",
 		log.Ldate|log.Ltime|log.Lshortfile)
-
 }

@@ -60,7 +60,7 @@ type StatusResponse struct {
 
 type ComponentLog struct {
 	ID          componentID `json:"id"`
-	DedupNumber uint64     `json:"dedup_number"`
+	DedupNumber uint64      `json:"dedup_number"`
 	Log         *string     `json:"log"`
 	Error       *string     `json:"error"`
 }
@@ -74,6 +74,17 @@ func (worker *V9Worker) post(route string, body []byte) (*http.Response, error) 
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(body))
 	if err != nil {
 		Error.Println("Failed to post", err)
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+func (worker *V9Worker) get(route string) (*http.Response, error) {
+	url := "http://" + worker.url + route
+	resp, err := http.Get(url)
+	if err != nil {
+		Error.Println("Failed to get", err)
 		return nil, err
 	}
 
@@ -147,7 +158,7 @@ func (worker *V9Worker) Logs() (LogResponse, error) {
 	url := "http://" + worker.url + "/meta/logs"
 	resp, err := http.Get(url)
 	if err != nil {
-		Error.Println("Failed to get status", err)
+		Error.Println("Failed to get logs", err)
 		return LogResponse{}, err
 	}
 	defer resp.Body.Close()
@@ -168,8 +179,7 @@ func (worker *V9Worker) Logs() (LogResponse, error) {
 }
 
 func (worker *V9Worker) Status() (StatusResponse, error) {
-	url := "http://" + worker.url + "/meta/status"
-	resp, err := http.Get(url)
+	resp, err := worker.get("/meta/status")
 	if err != nil {
 		Error.Println("Failed to get status", err)
 		return StatusResponse{}, err
@@ -178,7 +188,7 @@ func (worker *V9Worker) Status() (StatusResponse, error) {
 
 	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		Error.Println("Failure to read response from worker", err)
+		Error.Println("Failure to read status response from worker", err)
 		return StatusResponse{}, err
 	}
 
