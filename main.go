@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 func init() {
@@ -47,7 +48,11 @@ func main() {
 		return
 	}
 
-	http.Handle("/payload", &pushHandler{workers: workers, counter: 0})
+	http.Handle("/payload", &pushHandler{workers: workers, counter: 0, deployer: &Deployer{
+		allWorkers:             workers,
+		deploymentChannelMutex: sync.RWMutex{},
+		deploymentChannels: make(map[repoPath]chan deploymentInfo),
+	}})
 	Info.Println("Starting Server...")
 	err := http.ListenAndServe(CIPort, nil)
 	if err != nil {
