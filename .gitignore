@@ -16,3 +16,6 @@ v9_deployment_manager
 # Scripts for deploying on ec2
 run.sh
 env.sh
+
+# GoLand
+.idea

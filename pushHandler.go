@@ -9,7 +9,7 @@ import (
 )
 
 type pushHandler struct {
-	workers []string
+	workers []*V9Worker
 	counter int
 }
 
@@ -59,7 +59,7 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		user = parsedPayload.Repository.Owner.Login
 		repo = parsedPayload.Repository.Name
 	}
-	dev := devID{user, repo, "test_hash"}
+	compID := componentID{user, repo, "test_hash"}
 
 	// Get random tar name
 	// This is done early to have a unique temporary directory
@@ -95,16 +95,16 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	Info.Println("SCP tar to worker...")
 	source := "./" + tarNameExt
 	destination := "/home/ubuntu/" + tarNameExt
-	err = scpToWorker(worker, source, destination, tarNameExt)
+	err = scpToWorker(worker.url, source, destination, tarNameExt)
 	if err != nil {
 		Error.Println("Error copying to worker", err)
 		return
 	}
 
 	// Call deactivate to remove running component
-	deactivateComponent(dev, h.workers)
+	DeactivateComponentEverywhere(compID, h.workers)
 
-	err = activateWorker(dev, worker, destination)
+	err = worker.Activate(compID, destination)
 	if err != nil {
 		Error.Println("Error activating worker", err)
 		return

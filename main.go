@@ -2,15 +2,16 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 )
 
 func init() {
 	// Setup log streams
 	setLogStreams(os.Stdout, os.Stdout, os.Stderr)
-
 }
 
 func main() {
@@ -27,20 +28,24 @@ func main() {
 	// Get workers from env
 	workers, envErr := getWorkers()
 	if envErr != nil {
-		Error.Println("Error loading env variables", envErr)
+		Error.Println("Error getting worker info", envErr)
+		return
+	}
+
+	// Get psql info from env
+	psqlInfo, psqlInfoErr := getPsqlInfo()
+	if psqlInfoErr != nil {
+		Error.Println("Error getting psql info", psqlInfoErr)
 		return
 	}
 
 	Info.Println("CIPort", CIPort, "websitePort", websitePort, "workers", workers)
 
-	go func() {
-		Info.Println("Starting status handler...")
-		http.Handle("/status", &statusHandler{workers: workers})
-		err := http.ListenAndServe(websitePort, nil)
-		if err != nil {
-			Error.Println("Status http.ListenAndServer Error:", err)
-		}
-	}()
+	dbErr := SetupDatabasePopulator(psqlInfo, workers)
+	if dbErr != nil {
+		Error.Println("Error connecting to DB", dbErr)
+		return
+	}
 
 	http.Handle("/payload", &pushHandler{workers: workers, counter: 0})
 	Info.Println("Starting Server...")
@@ -51,17 +56,67 @@ func main() {
 }
 
 // Get env variables
-func getWorkers() ([]string, error) {
-	workerString, exists := os.LookupEnv("V9_WORKERS")
+func getEnvVar(name string) (string, error) {
+	val, exists := os.LookupEnv(name)
 	if !exists {
-		Error.Println("Failed to find Worker URLs")
-		return nil, errors.New("failed to find WORKERS")
+		return "", errors.New("Missing env variable: " + name)
 	}
-	workerArr := strings.Split(workerString, ";")
-	return workerArr, nil
+
+	return val, nil
 }
 
-//Contains FIXME this should be in the helper class
+func getWorkers() ([]*V9Worker, error) {
+	workerString, err := getEnvVar("V9_WORKERS")
+	if err != nil {
+		return nil, err
+	}
+
+	workerUrls := strings.Split(workerString, ";")
+	var workers = make([]*V9Worker, len(workerUrls))
+
+	for i, url := range workerUrls {
+		workers[i] = &V9Worker{url: url}
+	}
+	return workers, nil
+}
+
+func getPsqlInfo() (string, error) {
+	pgHost, err := getEnvVar("V9_PG_HOST")
+	if err != nil {
+		return "", err
+	}
+
+	pgPortString, err := getEnvVar("V9_PG_PORT")
+	if err != nil {
+		return "", err
+	}
+	pgPort, err := strconv.Atoi(pgPortString)
+	if err != nil {
+		return "", fmt.Errorf("err: V9_PG_PORT must be a valid integer, was %s: %w", pgPortString, err)
+	}
+
+	pgUser, err := getEnvVar("V9_PG_USER")
+	if err != nil {
+		return "", err
+	}
+
+	pgPassword, err := getEnvVar("V9_PG_PASSWORD")
+	if err != nil {
+		return "", err
+	}
+
+	pgDb, err := getEnvVar("V9_PG_DB")
+	if err != nil {
+		return "", err
+	}
+
+	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+		pgHost, pgPort, pgUser, pgPassword, pgDb)
+
+	return psqlInfo, nil
+}
+
+// FIXME: this should be in the helper class
 func contains(arr []string, str string) bool {
 	for _, a := range arr {
 		if a == str {
