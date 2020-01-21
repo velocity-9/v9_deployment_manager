@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"os"
+	"sync"
 
 	guuid "github.com/google/uuid"
 	"github.com/hjaensch7/webhooks/github"
@@ -11,7 +12,22 @@ import (
 type pushHandler struct {
 	workers []*V9Worker
 	counter int
+
+	deploymentChannelMutex sync.RWMutex
+	deploymentChannels map[repoPath]chan deploymentInfo
 }
+
+type repoPath struct {
+	repo string
+	user string
+}
+
+type deploymentInfo struct {
+	id componentID
+	downloadURL string
+	worker *V9Worker
+}
+
 
 func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Parse worker param
@@ -59,8 +75,57 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		user = parsedPayload.Repository.Owner.Login
 		repo = parsedPayload.Repository.Name
 	}
-	compID := componentID{user, repo, "test_hash"}
 
+	path := repoPath{
+		repo: repo,
+		user: user,
+	}
+
+	h.deploymentChannelMutex.RLock()
+
+	pusher, ok := h.deploymentChannels[path]
+
+	if !ok {
+		h.deploymentChannelMutex.RUnlock()
+		h.deploymentChannelMutex.Lock()
+
+		pusher, ok = h.deploymentChannels[path]
+		if !ok {
+			pusher = make(chan deploymentInfo, 1)
+
+			go func() {
+				for {
+					depInfo := <-pusher
+					deployComponentFromGithub(depInfo, h.workers)
+				}
+			}()
+
+			h.deploymentChannels[path] = pusher
+		}
+
+		h.deploymentChannelMutex.Unlock()
+		h.deploymentChannelMutex.RLock()
+	}
+
+	// We push for a deployment if there is space in the channel -- AKA no other deployment is running
+	select {
+	case pusher<-deploymentInfo{
+			id:          componentID{
+				User: user,
+				Repo: repo,
+				Hash: "test_hash",
+			},
+			downloadURL: downloadURL,
+			worker:      worker,
+		}:
+	default:
+		// Do nothing if there is something already waiting to trigger
+	}
+
+	h.deploymentChannelMutex.RUnlock()
+}
+
+func deployComponentFromGithub(depInfo deploymentInfo, workers []*V9Worker) {
 	// Get random tar name
 	// This is done early to have a unique temporary directory
 	tarName := guuid.New().String()
@@ -68,7 +133,7 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Get Repo Contents
 	Info.Println("Downloading Repo...")
 	tempRepoPath := "./git_" + tarName
-	err = downloadRepo(downloadURL, tempRepoPath)
+	err := downloadRepo(depInfo.downloadURL, tempRepoPath)
 	if err != nil {
 		Error.Println("Error downloading repo:", err)
 	}
@@ -95,18 +160,23 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	Info.Println("SCP tar to worker...")
 	source := "./" + tarNameExt
 	destination := "/home/ubuntu/" + tarNameExt
-	err = scpToWorker(worker.url, source, destination, tarNameExt)
+	err = scpToWorker(depInfo.worker.url, source, destination, tarNameExt)
 	if err != nil {
 		Error.Println("Error copying to worker", err)
 		return
 	}
 
 	// Call deactivate to remove running component
-	DeactivateComponentEverywhere(compID, h.workers)
+	DeactivateComponentEverywhere(depInfo.id, workers)
 
-	err = worker.Activate(compID, destination)
+	err = depInfo.worker.Activate(depInfo.id, destination)
 	if err != nil {
 		Error.Println("Error activating worker", err)
 		return
 	}
+}
+
+type deploymentHandler struct {
+	user string
+	repo string
 }
