@@ -80,12 +80,12 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Activate worker
 	user := push.Repository.Owner.Login
 	repo := push.Repository.Name
-	compId := componentId{user, repo, "test_hash"}
+	compID := componentID{user, repo, "test_hash"}
 
 	// Call deactivate to remove running component
-	DeactivateComponentEverywhere(compId, h.workers)
+	DeactivateComponentEverywhere(compID, h.workers)
 
-	err = worker.Activate(compId, destination)
+	err = worker.Activate(compID, destination)
 	if err != nil {
 		Error.Println("Error activating worker", err)
 		return

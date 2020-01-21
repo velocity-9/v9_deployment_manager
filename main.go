@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -75,7 +76,7 @@ func getWorkers() ([]*V9Worker, error) {
 	var workers []*V9Worker
 
 	for _, url := range workerUrls {
-		workers = append(workers, &V9Worker{url:url})
+		workers = append(workers, &V9Worker{url: url})
 	}
 	return workers, nil
 }
@@ -86,9 +87,13 @@ func getPsqlInfo() (string, error) {
 		return "", err
 	}
 
-	pgPort, err := getEnvVar("V9_PG_PORT")
+	pgPortString, err := getEnvVar("V9_PG_PORT")
 	if err != nil {
 		return "", err
+	}
+	pgPort, err := strconv.Atoi(pgPortString)
+	if err != nil {
+		return "", fmt.Errorf("V9_PG_PORT must be a valid integer, was %s: %w", pgPortString, err)
 	}
 
 	pgUser, err := getEnvVar("V9_PG_USER")
