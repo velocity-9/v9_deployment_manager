@@ -11,6 +11,7 @@ import (
 type pushHandler struct {
 	workers []*V9Worker
 	counter int
+	populator *databasePopulator
 }
 
 func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -59,7 +60,16 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		user = parsedPayload.Repository.Owner.Login
 		repo = parsedPayload.Repository.Name
 	}
+
 	compID := componentID{user, repo, "test_hash"}
+
+	// Setup the DB deploying entry
+	err = h.populator.startDeploying(compID)
+	if err != nil {
+		Error.Println("Error starting deploy using db:", err)
+		return
+	}
+	defer h.populator.stopDeploying(compID)
 
 	// Get random tar name
 	// This is done early to have a unique temporary directory
@@ -71,6 +81,7 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err = downloadRepo(downloadURL, tempRepoPath)
 	if err != nil {
 		Error.Println("Error downloading repo:", err)
+		return
 	}
 	defer os.RemoveAll(tempRepoPath)
 

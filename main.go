@@ -41,13 +41,13 @@ func main() {
 
 	Info.Println("CIPort", CIPort, "websitePort", websitePort, "workers", workers)
 
-	dbErr := SetupDatabasePopulator(psqlInfo, workers)
+	populator, dbErr := SetupDatabasePopulator(psqlInfo, workers)
 	if dbErr != nil {
 		Error.Println("Error connecting to DB", dbErr)
 		return
 	}
 
-	http.Handle("/payload", &pushHandler{workers: workers, counter: 0})
+	http.Handle("/payload", &pushHandler{workers: workers, counter: 0, populator: populator})
 	Info.Println("Starting Server...")
 	err := http.ListenAndServe(CIPort, nil)
 	if err != nil {

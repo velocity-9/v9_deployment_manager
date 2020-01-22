@@ -14,17 +14,17 @@ const (
 	pollingInterval = 1 * time.Second
 )
 
-func SetupDatabasePopulator(psqlInfo string, workers []*V9Worker) error {
+func SetupDatabasePopulator(psqlInfo string, workers []*V9Worker) (*databasePopulator, error) {
 	db, err := sql.Open("postgres", psqlInfo)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	populator := databasePopulator{db: db, workers: workers}
 	err = populator.recordWorkerIDs()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	go func() {
@@ -35,13 +35,50 @@ func SetupDatabasePopulator(psqlInfo string, workers []*V9Worker) error {
 		}
 	}()
 
-	return nil
+	return &populator, nil
 }
 
 type databasePopulator struct {
 	db                *sql.DB
 	workerDatabaseIDs []string
 	workers           []*V9Worker
+}
+
+func (populator *databasePopulator) startDeploying(id componentID) error {
+	dbId, err := populator.getComponentID(id)
+	if err != nil {
+		return err
+	}
+
+	// Check if it's already being deployed somewhere, assuming entries older than 15 minutes are irrelevent
+	checkQuery := `SELECT * FROM v9.public.deploying WHERE component_id = $1 AND age(received_time) < '15 minutes'`
+	res, err := populator.db.Exec(checkQuery, dbId)
+
+	// If we get no error, or anything other than sql.ErrNoRows, then we're in trouble -- bail out
+	if err != sql.ErrNoRows {
+		Error.Println("Deploying entry already exists", res, "err:", err)
+		return err
+	}
+
+	// FIXME: Tiny race condition here, since checkQuery and updateQuery are seperated
+	//        This is fine for demo but needs fixed in future
+	updateQuery := `INSERT INTO v9.public.deploying(component_id) VALUES ($1)`
+	_, err = populator.db.Exec(updateQuery, dbId)
+	return err
+}
+
+func (populator *databasePopulator) stopDeploying(id componentID) {
+	dbId, err := populator.getComponentID(id)
+	if err != nil {
+		Error.Println("Could not get dbID, err:", err)
+		return
+	}
+
+	deleteQuery := `DELETE FROM v9.public.deploying WHERE component_id = $1`
+	_, err = populator.db.Exec(deleteQuery, dbId)
+	if err != nil {
+		Error.Println("Could not delete component:", err)
+	}
 }
 
 func (populator *databasePopulator) recordWorkerIDs() error {
@@ -90,8 +127,8 @@ func (populator *databasePopulator) getComponentID(compID componentID) (string, 
 	}
 
 	// Ensure that there is a component in the database associated with this repo
-	insertQuery := `INSERT INTO v9.public.components(user_id, github_repo, deployment_status)
- 	SELECT $1, $2, 'ready'
+	insertQuery := `INSERT INTO v9.public.components(user_id, github_repo, deployment_intention)
+ 	SELECT $1, $2, 'active'
 	WHERE NOT exists(SELECT component_id FROM v9.public.components WHERE user_id = $1 AND github_repo = $2)`
 
 	_, err = populator.db.Exec(insertQuery, userID, compID.Repo)
