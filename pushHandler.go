@@ -11,7 +11,7 @@ import (
 type pushHandler struct {
 	workers []*V9Worker
 	counter int
-	populator *databasePopulator
+	populator *DatabasePopulator
 }
 
 func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {

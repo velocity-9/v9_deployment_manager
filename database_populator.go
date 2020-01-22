@@ -14,14 +14,14 @@ const (
 	pollingInterval = 1 * time.Second
 )
 
-func SetupDatabasePopulator(psqlInfo string, workers []*V9Worker) (*databasePopulator, error) {
+func SetupDatabasePopulator(psqlInfo string, workers []*V9Worker) (*DatabasePopulator, error) {
 	db, err := sql.Open("postgres", psqlInfo)
 
 	if err != nil {
 		return nil, err
 	}
 
-	populator := databasePopulator{db: db, workers: workers}
+	populator := DatabasePopulator{db: db, workers: workers}
 	err = populator.recordWorkerIDs()
 	if err != nil {
 		return nil, err
@@ -38,21 +38,21 @@ func SetupDatabasePopulator(psqlInfo string, workers []*V9Worker) (*databasePopu
 	return &populator, nil
 }
 
-type databasePopulator struct {
+type DatabasePopulator struct {
 	db                *sql.DB
 	workerDatabaseIDs []string
 	workers           []*V9Worker
 }
 
-func (populator *databasePopulator) startDeploying(id componentID) error {
-	dbId, err := populator.getComponentID(id)
+func (populator *DatabasePopulator) startDeploying(id componentID) error {
+	dbID, err := populator.getComponentID(id)
 	if err != nil {
 		return err
 	}
 
-	// Check if it's already being deployed somewhere, assuming entries older than 15 minutes are irrelevent
+	// Check if it's already being deployed somewhere, assuming entries older than 15 minutes are irrelevant
 	checkQuery := `SELECT * FROM v9.public.deploying WHERE component_id = $1 AND age(received_time) < '15 minutes'`
-	res, err := populator.db.Exec(checkQuery, dbId)
+	res, err := populator.db.Exec(checkQuery, dbID)
 
 	// If we get no error, or anything other than sql.ErrNoRows, then we're in trouble -- bail out
 	if err != sql.ErrNoRows {
@@ -60,28 +60,28 @@ func (populator *databasePopulator) startDeploying(id componentID) error {
 		return err
 	}
 
-	// FIXME: Tiny race condition here, since checkQuery and updateQuery are seperated
+	// FIXME: Tiny race condition here, since checkQuery and updateQuery are separated
 	//        This is fine for demo but needs fixed in future
 	updateQuery := `INSERT INTO v9.public.deploying(component_id) VALUES ($1)`
-	_, err = populator.db.Exec(updateQuery, dbId)
+	_, err = populator.db.Exec(updateQuery, dbID)
 	return err
 }
 
-func (populator *databasePopulator) stopDeploying(id componentID) {
-	dbId, err := populator.getComponentID(id)
+func (populator *DatabasePopulator) stopDeploying(id componentID) {
+	dbID, err := populator.getComponentID(id)
 	if err != nil {
 		Error.Println("Could not get dbID, err:", err)
 		return
 	}
 
 	deleteQuery := `DELETE FROM v9.public.deploying WHERE component_id = $1`
-	_, err = populator.db.Exec(deleteQuery, dbId)
+	_, err = populator.db.Exec(deleteQuery, dbID)
 	if err != nil {
 		Error.Println("Could not delete component:", err)
 	}
 }
 
-func (populator *databasePopulator) recordWorkerIDs() error {
+func (populator *DatabasePopulator) recordWorkerIDs() error {
 	var ids = make([]string, len(populator.workers))
 	for i := range populator.workers {
 		name := "worker_" + strconv.Itoa(i+1)
@@ -110,7 +110,7 @@ func (populator *databasePopulator) recordWorkerIDs() error {
 	return nil
 }
 
-func (populator *databasePopulator) getUserID(githubUsername string) (string, error) {
+func (populator *DatabasePopulator) getUserID(githubUsername string) (string, error) {
 	var id string
 	err := populator.db.QueryRow(
 		"SELECT user_id FROM v9.public.users WHERE github_username = $1", githubUsername).Scan(&id)
@@ -120,7 +120,7 @@ func (populator *databasePopulator) getUserID(githubUsername string) (string, er
 	return id, nil
 }
 
-func (populator *databasePopulator) getComponentID(compID componentID) (string, error) {
+func (populator *DatabasePopulator) getComponentID(compID componentID) (string, error) {
 	userID, err := populator.getUserID(compID.User)
 	if err != nil {
 		return "", err
@@ -147,7 +147,7 @@ func (populator *databasePopulator) getComponentID(compID componentID) (string, 
 	return id, nil
 }
 
-func (populator *databasePopulator) insertStatsForComponent(workerID string, componentStats ComponentStatus) error {
+func (populator *DatabasePopulator) insertStatsForComponent(workerID string, componentStats ComponentStatus) error {
 	compID, err := populator.getComponentID(componentStats.ID)
 	if err != nil {
 		Warning.Println("Error getting component ID:", err)
@@ -176,7 +176,7 @@ func (populator *databasePopulator) insertStatsForComponent(workerID string, com
 	return nil
 }
 
-func (populator *databasePopulator) insertLogsForComponent(workerID string, log ComponentLog) error {
+func (populator *DatabasePopulator) insertLogsForComponent(workerID string, log ComponentLog) error {
 	compID, err := populator.getComponentID(log.ID)
 	if err != nil {
 		Warning.Println("Error getting component ID:", err)
@@ -228,7 +228,7 @@ func (populator *databasePopulator) insertLogsForComponent(workerID string, log 
 	return err
 }
 
-func (populator *databasePopulator) pollWorkers2Database() {
+func (populator *DatabasePopulator) pollWorkers2Database() {
 	for i, worker := range populator.workers {
 		workerID := populator.workerDatabaseIDs[i]
 
