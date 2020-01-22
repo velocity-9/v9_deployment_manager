@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -51,13 +52,15 @@ func (populator *DatabasePopulator) startDeploying(id componentID) error {
 	}
 
 	// Check if it's already being deployed somewhere, assuming entries older than 15 minutes are irrelevant
-	checkQuery := `SELECT * FROM v9.public.deploying WHERE component_id = $1 AND age(received_time) < '15 minutes'`
-	res, err := populator.db.Exec(checkQuery, dbID)
+	var receivedTime string
+	checkQuery := `SELECT to_char(received_time::timestamp at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
+	FROM v9.public.deploying WHERE component_id = $1 AND age(received_time) < '15 minutes'`
+	err = populator.db.QueryRow(checkQuery, dbID).Scan(&receivedTime)
 
 	// If we get no error, or anything other than sql.ErrNoRows, then we're in trouble -- bail out
 	if err != sql.ErrNoRows {
-		Error.Println("Deploying entry already exists", res, "err:", err)
-		return err
+		Error.Println("Deploying entry already exists, previously recieved at", receivedTime, "err:", err)
+		return fmt.Errorf("cannot overwrite deploying %w", err)
 	}
 
 	// FIXME: Tiny race condition here, since checkQuery and updateQuery are separated
