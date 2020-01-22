@@ -9,8 +9,8 @@ import (
 )
 
 type pushHandler struct {
-	workers []*V9Worker
-	counter int
+	workers   []*V9Worker
+	counter   int
 	populator *DatabasePopulator
 }
 
