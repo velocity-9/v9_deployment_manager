@@ -59,7 +59,7 @@ func (populator *DatabasePopulator) startDeploying(id componentID) error {
 
 	// If we get no error, or anything other than sql.ErrNoRows, then we're in trouble -- bail out
 	if err != sql.ErrNoRows {
-		Error.Println("Deploying entry already exists, previously recieved at", receivedTime, "err:", err)
+		Error.Println("Deploying entry already exists, previously received at", receivedTime, "err:", err)
 		return fmt.Errorf("cannot overwrite deploying %w", err)
 	}
 
