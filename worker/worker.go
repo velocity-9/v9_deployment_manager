@@ -1,45 +1,46 @@
-package main
+package worker
 
 import (
 	"bytes"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"v9_deployment_manager/log"
 )
 
 type V9Worker struct {
-	url string
+	URL string
 }
 
-type componentID struct {
+type ComponentID struct {
 	User string `json:"user"`
 	Repo string `json:"repo"`
 	Hash string `json:"hash"`
 }
 
 type activateRequest struct {
-	ID              componentID `json:"id"`
+	ID              ComponentID `json:"id"`
 	ExecutableFile  string      `json:"executable_file"`
 	ExecutionMethod string      `json:"execution_method"`
 }
 
-func createActivateBody(compID componentID, tarPath string, executionMethod string) ([]byte, error) {
+func createActivateBody(compID ComponentID, tarPath string, executionMethod string) ([]byte, error) {
 	body, err := json.Marshal(activateRequest{compID, tarPath, executionMethod})
 	return body, err
 }
 
 type deactivateRequest struct {
-	ID componentID `json:"id"`
+	ID ComponentID `json:"id"`
 }
 
 // Build activate post body
-func createDeactivateBody(compID componentID) ([]byte, error) {
+func createDeactivateBody(compID ComponentID) ([]byte, error) {
 	body, err := json.Marshal(deactivateRequest{compID})
 	return body, err
 }
 
-type ComponentStatus struct {
-	ID componentID `json:"id"`
+type ComponentStats struct {
+	ID ComponentID `json:"id"`
 
 	Color      string  `json:"color"`
 	StatWindow float64 `json:"stat_window_seconds"`
@@ -52,14 +53,14 @@ type ComponentStatus struct {
 }
 
 type StatusResponse struct {
-	CPUUsage         float64           `json:"cpu_usage"`
-	MemoryUsage      float64           `json:"memory_usage"`
-	NetworkUsage     float64           `json:"network_usage"`
-	ActiveComponents []ComponentStatus `json:"active_components"`
+	CPUUsage         float64          `json:"cpu_usage"`
+	MemoryUsage      float64          `json:"memory_usage"`
+	NetworkUsage     float64          `json:"network_usage"`
+	ActiveComponents []ComponentStats `json:"active_components"`
 }
 
 type ComponentLog struct {
-	ID          componentID `json:"id"`
+	ID          ComponentID `json:"id"`
 	DedupNumber uint64      `json:"dedup_number"`
 	Log         *string     `json:"log"`
 	Error       *string     `json:"error"`
@@ -70,10 +71,10 @@ type LogResponse struct {
 }
 
 func (worker *V9Worker) post(route string, body []byte) (*http.Response, error) {
-	url := "http://" + worker.url + route
+	url := "http://" + worker.URL + route
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(body))
 	if err != nil {
-		Error.Println("Failed to post", err)
+		log.Error.Println("Failed to post", err)
 		return nil, err
 	}
 
@@ -81,21 +82,21 @@ func (worker *V9Worker) post(route string, body []byte) (*http.Response, error) 
 }
 
 func (worker *V9Worker) get(route string) (*http.Response, error) {
-	url := "http://" + worker.url + route
+	url := "http://" + worker.URL + route
 	resp, err := http.Get(url)
 	if err != nil {
-		Error.Println("Failed to get", err)
+		log.Error.Println("Failed to get", err)
 		return nil, err
 	}
 
 	return resp, nil
 }
 
-func (worker *V9Worker) Activate(component componentID, tarPath string) error {
+func (worker *V9Worker) Activate(component ComponentID, tarPath string) error {
 	// Marshal information into json body
 	body, err := createActivateBody(component, tarPath, "docker-archive")
 	if err != nil {
-		Error.Println("Failed to create activation body", err)
+		log.Error.Println("Failed to create activation body", err)
 		return err
 	}
 
@@ -108,20 +109,20 @@ func (worker *V9Worker) Activate(component componentID, tarPath string) error {
 
 	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		Error.Println("Failure to read response from worker", err)
+		log.Error.Println("Failure to read response from worker", err)
 		return err
 	}
 
 	// TODO: Look for activate errors and store them somewhere
-	Info.Println("Response from worker:", string(respBody))
+	log.Info.Println("Response from worker:", string(respBody))
 	return nil
 }
 
-func (worker *V9Worker) Deactivate(component componentID) error {
+func (worker *V9Worker) Deactivate(component ComponentID) error {
 	// Marshal information into json body
 	body, err := createDeactivateBody(component)
 	if err != nil {
-		Error.Println("Failed to create deactivation body", err)
+		log.Error.Println("Failed to create deactivation body", err)
 		return err
 	}
 
@@ -134,38 +135,38 @@ func (worker *V9Worker) Deactivate(component componentID) error {
 
 	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		Error.Println("Failure to read response from worker", err)
+		log.Error.Println("Failure to read response from worker", err)
 		return err
 	}
 
 	// TODO: Look for deactivate errors and store them somewhere
-	Info.Println("Response from worker:", string(respBody))
+	log.Info.Println("Response from worker:", string(respBody))
 	return nil
 }
 
 // Deactivate component
-func DeactivateComponentEverywhere(compID componentID, workers []*V9Worker) {
+func DeactivateComponentEverywhere(compID ComponentID, workers []*V9Worker) {
 	for i := range workers {
 		err := workers[i].Deactivate(compID)
 		if err != nil {
-			Info.Println("Failed to deactivate worker:", i, err)
+			log.Info.Println("Failed to deactivate worker:", i, err)
 			// This can fail and should fall through
 		}
 	}
 }
 
 func (worker *V9Worker) Logs() (LogResponse, error) {
-	url := "http://" + worker.url + "/meta/logs"
+	url := "http://" + worker.URL + "/meta/logs"
 	resp, err := http.Get(url)
 	if err != nil {
-		Error.Println("Failed to get logs", err)
+		log.Error.Println("Failed to get logs", err)
 		return LogResponse{}, err
 	}
 	defer resp.Body.Close()
 
 	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		Error.Println("Failure to read response from worker", err)
+		log.Error.Println("Failure to read response from worker", err)
 		return LogResponse{}, err
 	}
 
@@ -181,14 +182,14 @@ func (worker *V9Worker) Logs() (LogResponse, error) {
 func (worker *V9Worker) Status() (StatusResponse, error) {
 	resp, err := worker.get("/meta/status")
 	if err != nil {
-		Error.Println("Failed to get status", err)
+		log.Error.Println("Failed to get status", err)
 		return StatusResponse{}, err
 	}
 	defer resp.Body.Close()
 
 	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		Error.Println("Failure to read status response from worker", err)
+		log.Error.Println("Failure to read status response from worker", err)
 		return StatusResponse{}, err
 	}
 

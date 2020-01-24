@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"os/exec"
+	"v9_deployment_manager/log"
 )
 
 // Build Docker Image Based on Dockerfile
@@ -28,19 +29,19 @@ func gzipTar(tarName string) error {
 // Build and Zip tar
 func buildAndZipTar(tarName string) (string, error) {
 	// Build tar
-	Info.Println("Building tar from Docker image...")
+	log.Info.Println("Building tar from Docker image...")
 	err := buildTarFromImage(tarName)
 	if err != nil {
-		Error.Println("Error building tar from image", err)
+		log.Error.Println("Error building tar from image", err)
 		return "", err
 	}
 
 	tarNameExt := tarName + ".tar"
 	// Gzip tar
-	Info.Println("Gzipping tar...")
+	log.Info.Println("Gzipping tar...")
 	err = gzipTar(tarNameExt)
 	if err != nil {
-		Error.Println("Failure to gzip", err)
+		log.Error.Println("Failure to gzip", err)
 		return "", err
 	}
 	tarNameExt += ".gz"

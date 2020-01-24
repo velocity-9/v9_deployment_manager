@@ -3,8 +3,9 @@ package main
 import (
 	"os"
 	"time"
+	"v9_deployment_manager/log"
 
-	scp "github.com/bramvdbogaerde/go-scp"
+	"github.com/bramvdbogaerde/go-scp"
 	"github.com/bramvdbogaerde/go-scp/auth"
 	"golang.org/x/crypto/ssh"
 )
@@ -14,7 +15,7 @@ func scpToWorker(workerURL string, source string, dest string, tarName string) e
 	// we ignore the host key in this example, please change this if you use this library
 	clientConfig, err := auth.PrivateKey("ubuntu", "/home/ubuntu/.ssh/senior-design.pem", ssh.InsecureIgnoreHostKey())
 	if err != nil {
-		Error.Println("Error creating ssh config", err)
+		log.Error.Println("Error creating ssh config", err)
 		return err
 	}
 
@@ -24,10 +25,10 @@ func scpToWorker(workerURL string, source string, dest string, tarName string) e
 	client := scp.NewClientWithTimeout(workerURL, &clientConfig, (5 * time.Minute))
 
 	// Connect to the remote server
-	Info.Println("Connecting to worker...")
+	log.Info.Println("Connecting to worker...")
 	err = client.Connect()
 	if err != nil {
-		Error.Println("Couldn't establish a connection to the remote server ", err)
+		log.Error.Println("Couldn't establish a connection to the remote server ", err)
 		return err
 	}
 
@@ -37,7 +38,7 @@ func scpToWorker(workerURL string, source string, dest string, tarName string) e
 	// Open a file
 	f, err := os.Open(source)
 	if err != nil {
-		Error.Println("Error opening source file scp", err)
+		log.Error.Println("Error opening source file scp", err)
 		return err
 	}
 
@@ -46,7 +47,7 @@ func scpToWorker(workerURL string, source string, dest string, tarName string) e
 
 	// Finally, copy the file over
 	// Usage: CopyFile(fileReader, remotePath, permission)
-	Info.Println("Copying " + tarName)
+	log.Info.Println("Copying " + tarName)
 	// 0664 = read/write for owner/group, and read only for everyone else
 	return client.CopyFile(f, dest, "0664")
 }
