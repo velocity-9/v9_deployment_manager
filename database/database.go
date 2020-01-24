@@ -69,7 +69,7 @@ func (driver *Driver) FindWorkerID(workerName string) (string, error) {
 	return workerID, nil
 }
 
-func (driver *Driver) InsertStats(workerID string, componentStatus *worker.ComponentStats) error {
+func (driver *Driver) InsertStats(workerID string, componentStatus worker.ComponentStats) error {
 	compID, err := driver.FindComponentID(&componentStatus.ID)
 	if err != nil {
 		return fmt.Errorf("error getting component ID: %w", err)
@@ -96,7 +96,7 @@ func (driver *Driver) InsertStats(workerID string, componentStatus *worker.Compo
 }
 
 // TODO: Refactor to make cleaner
-func (driver *Driver) InsertLog(workerID string, compLog *worker.ComponentLog) error {
+func (driver *Driver) InsertLog(workerID string, compLog worker.ComponentLog) error {
 	compDBID, err := driver.FindComponentID(&compLog.ID)
 	if err != nil {
 		return fmt.Errorf("error getting comp id for logs: %w", err)

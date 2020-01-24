@@ -64,7 +64,7 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		repo = parsedPayload.Repository.Name
 	}
 
-	compID := worker.ComponentID{user, repo, "test_hash"}
+	compID := worker.ComponentID{User: user, Repo:repo, Hash: "test_hash"}
 
 	// Setup the DB deploying entry
 	err = h.driver.EnterDeploymentEntry(&compID)
@@ -72,7 +72,12 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Error.Println("Error starting deploy using db:", err)
 		return
 	}
-	defer h.driver.PurgeDeploymentEntry(&compID)
+	defer func() {
+		err := h.driver.PurgeDeploymentEntry(&compID)
+		if err != nil {
+			log.Error.Println("Error purging deployment entry:", err)
+		}
+	}()
 
 	// Get random tar name
 	// This is done early to have a unique temporary directory

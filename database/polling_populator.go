@@ -36,7 +36,7 @@ func (populator *PollingPopulator) pollWorkersToDatabase() {
 		// TODO: Clear out old stats
 
 		for _, componentStats := range status.ActiveComponents {
-			err = populator.driver.InsertStats(workerIDs[i], &componentStats)
+			err = populator.driver.InsertStats(workerIDs[i], componentStats)
 			if err != nil {
 				log.Warning.Println("error inserting stats in database:", err)
 			}
@@ -55,7 +55,7 @@ func (populator *PollingPopulator) pollWorkersToDatabase() {
 		// TODO: Handle worker shutdown elegantly
 
 		for _, componentLog := range logs.Logs {
-			err = populator.driver.InsertLog(workerIDs[i], &componentLog)
+			err = populator.driver.InsertLog(workerIDs[i], componentLog)
 			if err != nil {
 				log.Warning.Println("error inserting logs in database:", err)
 			}
