@@ -64,7 +64,7 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		repo = parsedPayload.Repository.Name
 	}
 
-	compID := worker.ComponentID{User: user, Repo:repo, Hash: "test_hash"}
+	compID := worker.ComponentID{User: user, Repo: repo, Hash: "test_hash"}
 
 	// Setup the DB deploying entry
 	err = h.driver.EnterDeploymentEntry(&compID)
@@ -73,9 +73,9 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer func() {
-		err := h.driver.PurgeDeploymentEntry(&compID)
-		if err != nil {
-			log.Error.Println("Error purging deployment entry:", err)
+		purgeErr := h.driver.PurgeDeploymentEntry(&compID)
+		if purgeErr != nil {
+			log.Error.Println("Error purging deployment entry:", purgeErr)
 		}
 	}()
 
