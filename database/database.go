@@ -27,6 +27,8 @@ func CreateDriver(psqlInfo string) (*Driver, error) {
 
 func (driver *Driver) FindUserID(githubUsername string) (string, error) {
 	var userID string
+	// NOTE: There is a bit of a hack here, where we set github_username = $1 (setting it to the same username)
+	// This ensures that the user_id is actually returned no matter what
 	upsertQuery := `INSERT INTO v9.public.users(email, github_username) VALUES (NULL, $1)
 	ON CONFLICT (github_username) DO UPDATE SET github_username = $1 RETURNING user_id`
 	err := driver.db.QueryRow(upsertQuery, githubUsername).Scan(&userID)
@@ -45,6 +47,8 @@ func (driver *Driver) FindComponentID(compID *worker.ComponentID) (string, error
 	}
 
 	var compDBID string
+	// NOTE: There is a bit of a hack here, where we set github_repo = $1 (setting it to the same repo)
+	// This ensures that the component_id is actually returned no matter what
 	upsertQuery := `INSERT INTO v9.public.components(user_id, github_repo, deployment_intention) VALUES ($1, $2, $3)
 	ON CONFLICT (user_id, github_repo) DO UPDATE SET github_repo = $2 RETURNING component_id`
 	err = driver.db.QueryRow(upsertQuery, userID, compID.Repo, "active").Scan(&compDBID)
@@ -58,6 +62,8 @@ func (driver *Driver) FindComponentID(compID *worker.ComponentID) (string, error
 
 func (driver *Driver) FindWorkerID(workerName string) (string, error) {
 	var workerID string
+	// NOTE: There is a bit of a hack here, where we set worker_name = $1 (setting it to the same name)
+	// This ensures that the worker_id is actually returned no matter what
 	upsertQuery := `INSERT INTO v9.public.workers(worker_name) VALUES ($1)
 	ON CONFLICT (worker_name) DO UPDATE SET worker_name = $1 RETURNING worker_id`
 
@@ -132,12 +138,12 @@ func (driver *Driver) InsertLog(workerID string, compLog worker.ComponentLog) er
 		logError = compLog.Error
 	}
 
-	insertUpdateQuery := `INSERT INTO v9.public.logs
+	upsertQuery := `INSERT INTO v9.public.logs
     (log_id, worker_id, component_id, execution_num, log_text, log_error, received_time)
     VALUES ($1, $2, $3, $4, $5, $6, NOW())
     ON CONFLICT (log_id) DO UPDATE SET log_text = $5, log_error = $6, received_time = NOW()`
 
-	_, err = driver.db.Exec(insertUpdateQuery, logID, workerID, compDBID, compLog.DedupNumber, logText, logError)
+	_, err = driver.db.Exec(upsertQuery, logID, workerID, compDBID, compLog.DedupNumber, logText, logError)
 	if err != nil {
 		return fmt.Errorf("error doing final log database update: %w", err)
 	}

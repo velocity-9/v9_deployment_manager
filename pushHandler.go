@@ -64,6 +64,7 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		repo = parsedPayload.Repository.Name
 	}
 
+	// FIXME: The hash is wrong (https://github.com/velocity-9/v9_deployment_manager/issues/7)
 	compID := worker.ComponentID{User: user, Repo: repo, Hash: "test_hash"}
 
 	// Setup the DB deploying entry
