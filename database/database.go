@@ -176,7 +176,7 @@ func (driver *Driver) PurgeDeploymentEntry(compID *worker.ComponentID) error {
 	}
 
 	deleteQuery := `DELETE FROM v9.public.deploying WHERE component_id = $1`
-	_, err = driver.db.Exec(deleteQuery, compDBID, "initial_deployment")
+	_, err = driver.db.Exec(deleteQuery, compDBID)
 	if err != nil {
 		return fmt.Errorf("could not delete from deploying table: %w", err)
 	}
