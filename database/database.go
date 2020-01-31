@@ -162,12 +162,8 @@ func (driver *Driver) EnterDeploymentEntry(compID *worker.ComponentID) error {
 	VALUES ($1, $2) ON CONFLICT DO NOTHING
 	RETURNING to_char(deployment_start_time::timestamp at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`
 	err = driver.db.QueryRow(upsertQuery, compDBID, "initial_deployment").Scan(&deploymentStartTime)
-	if err == nil {
-		return fmt.Errorf("there was a previous deployment starting at: %s", deploymentStartTime)
-	}
-
-	if err != sql.ErrNoRows {
-		return fmt.Errorf("error checking against previous deployments: %w", err)
+	if err != nil {
+		return fmt.Errorf("there was a previous deployment in the database")
 	}
 
 	return nil
