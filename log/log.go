@@ -1,8 +1,8 @@
-package main
+package log
 
 import (
-	"io"
 	"log"
+	"os"
 )
 
 var (
@@ -11,17 +11,14 @@ var (
 	Error   *log.Logger
 )
 
-func setLogStreams(
-	infoHandle io.Writer,
-	warningHandle io.Writer,
-	errorHandle io.Writer) {
-	Info = log.New(infoHandle,
+func init() {
+	Info = log.New(os.Stdout,
 		"INFO: ",
 		log.Ldate|log.Ltime|log.Lshortfile)
-	Warning = log.New(warningHandle,
+	Warning = log.New(os.Stdout,
 		"WARNING: ",
 		log.Ldate|log.Ltime|log.Lshortfile)
-	Error = log.New(errorHandle,
+	Error = log.New(os.Stdout,
 		"ERROR: ",
 		log.Ldate|log.Ltime|log.Lshortfile)
 }
