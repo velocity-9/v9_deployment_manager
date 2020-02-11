@@ -7,12 +7,13 @@ import (
 	"os"
 	"strconv"
 	"strings"
-)
+	"time"
+	"v9_deployment_manager/database"
+	"v9_deployment_manager/log"
+	"v9_deployment_manager/worker"
 
-func init() {
-	// Setup log streams
-	setLogStreams(os.Stdout, os.Stdout, os.Stderr)
-}
+	_ "github.com/lib/pq"
+)
 
 func main() {
 	//Initialize default ports
@@ -28,30 +29,32 @@ func main() {
 	// Get workers from env
 	workers, envErr := getWorkers()
 	if envErr != nil {
-		Error.Println("Error getting worker info", envErr)
+		log.Error.Println("Error getting worker info", envErr)
 		return
 	}
 
 	// Get psql info from env
 	psqlInfo, psqlInfoErr := getPsqlInfo()
 	if psqlInfoErr != nil {
-		Error.Println("Error getting psql info", psqlInfoErr)
+		log.Error.Println("Error getting psql info", psqlInfoErr)
 		return
 	}
 
-	Info.Println("CIPort", CIPort, "websitePort", websitePort, "workers", workers)
+	log.Info.Println("CIPort", CIPort, "websitePort", websitePort, "workers", workers)
 
-	dbErr := SetupDatabasePopulator(psqlInfo, workers)
+	driver, dbErr := database.CreateDriver(psqlInfo)
 	if dbErr != nil {
-		Error.Println("Error connecting to DB", dbErr)
+		log.Error.Println("Error connecting to DB", dbErr)
 		return
 	}
 
-	http.Handle("/payload", &pushHandler{workers: workers, counter: 0})
-	Info.Println("Starting Server...")
+	database.StartPollingPopulator(workers, time.Second*3, driver)
+
+	http.Handle("/payload", &pushHandler{workers: workers, counter: 0, driver: driver})
+	log.Info.Println("Starting Server...")
 	err := http.ListenAndServe(CIPort, nil)
 	if err != nil {
-		Error.Println("CI http.ListenAndServe Error:", err)
+		log.Error.Println("CI http.ListenAndServe Error:", err)
 	}
 }
 
@@ -65,17 +68,17 @@ func getEnvVar(name string) (string, error) {
 	return val, nil
 }
 
-func getWorkers() ([]*V9Worker, error) {
+func getWorkers() ([]*worker.V9Worker, error) {
 	workerString, err := getEnvVar("V9_WORKERS")
 	if err != nil {
 		return nil, err
 	}
 
 	workerUrls := strings.Split(workerString, ";")
-	var workers = make([]*V9Worker, len(workerUrls))
+	var workers = make([]*worker.V9Worker, len(workerUrls))
 
 	for i, url := range workerUrls {
-		workers[i] = &V9Worker{url: url}
+		workers[i] = &worker.V9Worker{URL: url}
 	}
 	return workers, nil
 }
