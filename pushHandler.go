@@ -39,6 +39,7 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var downloadURL string
 	var user string
 	var repo string
+	var repoNodeID string
 	// Send to Installation Handler if needed
 	switch payload := payload.(type) {
 	case github.InstallationPayload:
@@ -47,19 +48,36 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		downloadURL = getHTTPDownloadURLInstallation(payload)
 		user = payload.Installation.Account.Login
 		repo = payload.Repositories[0].Name
+		repoNodeID = payload.Repositories[0].NodeID
 	case github.InstallationRepositoriesPayload:
 		Info.Println("Received Github InstallationRepositories Event...")
 		Info.Println("Starting first time deployment...")
 		downloadURL = getHTTPDownloadURLInstallationRepositories(payload)
 		user = payload.Installation.Account.Login
 		repo = payload.RepositoriesAdded[0].Name
+		repoNodeID = payload.RepositoriesAdded[0].NodeID
 	default:
 		parsedPayload := payload.(github.PushPayload)
 		downloadURL = getHTTPDownloadURLPush(parsedPayload)
 		user = parsedPayload.Repository.Owner.Login
 		repo = parsedPayload.Repository.Name
+		repoNodeID = parsedPayload.Repository.NodeID
 	}
-	compID := componentID{user, repo, "test_hash"}
+
+	compID := worker.ComponentID{User: user, Repo: repo, Hash: repoNodeID}
+
+	// Setup the DB deploying entry
+	err = h.driver.EnterDeploymentEntry(&compID)
+	if err != nil {
+		log.Error.Println("Error starting deploy using db:", err)
+		return
+	}
+	defer func() {
+		purgeErr := h.driver.PurgeDeploymentEntry(&compID)
+		if purgeErr != nil {
+			log.Error.Println("Error purging deployment entry:", purgeErr)
+		}
+	}()
 
 	// Get random tar name
 	// This is done early to have a unique temporary directory
