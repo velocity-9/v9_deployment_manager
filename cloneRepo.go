@@ -11,11 +11,12 @@ import (
 )
 
 //Clone repo into temp dir
-func cloneRepo(repoName string) (dirName string, err error) {
+func cloneRepo(repoName string) (string, error) {
 	// Tempdir to clone the repository
 	dir, err := ioutil.TempDir("", ".git_")
 	if err != nil {
 		log.Error.Println(err)
+		return "", err
 	}
 
 	_, err = git.PlainClone(dir, false, &git.CloneOptions{
@@ -24,18 +25,22 @@ func cloneRepo(repoName string) (dirName string, err error) {
 
 	if err != nil {
 		log.Error.Println(err)
+		return "", err
 	}
 	return dir, err
 }
 
-func getHash(repoFilePathAbs string) (hash string, err error) {
+func getHash(repoFilePathAbs string) (string, error) {
 	cmd := exec.Command("git", "rev-parse", "HEAD")
 	cmd.Dir = repoFilePathAbs
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	err = cmd.Run()
-	hash = stdout.String()
+	err := cmd.Run()
+	if err != nil {
+		return "", err
+	}
+	hash := stdout.String()
 	hash = hash[:len(hash)-1]
 	return hash, err
 }

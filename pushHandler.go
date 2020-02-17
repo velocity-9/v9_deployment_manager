@@ -78,7 +78,6 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	//If first time installation get hash
 	if hash == "" {
-		//wd, _ := os.Getwd()
 		hash, err = getHash(clonedPath)
 		if err != nil {
 			log.Error.Println("Error getting hash from repo:", err)
