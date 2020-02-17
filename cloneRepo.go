@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"io/ioutil"
-	"log"
 	"os/exec"
 
 	"v9_deployment_manager/log"
@@ -36,7 +35,7 @@ func getHash(repoFilePathAbs string) (hash string, err error) {
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	err = cmd.Run()
-	hash = stdout.Bytes().String()
+	hash = stdout.String()
 	hash = hash[:len(hash)-1]
 	return hash, err
 }
