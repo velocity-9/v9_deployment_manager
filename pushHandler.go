@@ -76,7 +76,7 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer os.RemoveAll(clonedPath) // clean up
 
-	//If first time installation get hash
+	//If anything other than push event get hash
 	if hash == "" {
 		hash, err = getHash(clonedPath)
 		if err != nil {
