@@ -6,15 +6,17 @@ import (
 	"log"
 	"os/exec"
 
+	"v9_deployment_manager/log"
+
 	"gopkg.in/src-d/go-git.v4"
 )
 
 //Clone repo into temp dir
-func cloneRepo(repoName string) (dir_name string, err error) {
+func cloneRepo(repoName string) (dirName string, err error) {
 	// Tempdir to clone the repository
 	dir, err := ioutil.TempDir("", ".git_")
 	if err != nil {
-		log.Fatal(err) //FIXME correct this
+		log.Error.Println(err)
 	}
 
 	_, err = git.PlainClone(dir, false, &git.CloneOptions{
@@ -22,7 +24,7 @@ func cloneRepo(repoName string) (dir_name string, err error) {
 	})
 
 	if err != nil {
-		log.Fatal(err) //FIXME correct
+		log.Error.Println(err)
 	}
 	return dir, err
 }
@@ -34,7 +36,7 @@ func getHash(repoFilePathAbs string) (hash string, err error) {
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	err = cmd.Run()
-	hash = string(stdout.Bytes())
+	hash = stdout.Bytes().String()
 	hash = hash[:len(hash)-1]
 	return hash, err
 }
