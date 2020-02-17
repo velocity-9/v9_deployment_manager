@@ -40,35 +40,57 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Declare repo info vars
-	var downloadURL string
+	var repoFullName string
 	var user string
 	var repo string
-	var repoNodeID string
+	var hash = ""
 	// Send to Installation Handler if needed
 	switch payload := payload.(type) {
 	case github.InstallationPayload:
 		log.Info.Println("Received Github App Installation Event...")
-		log.Info.Println("Starting first time deployment...")
-		downloadURL = getHTTPDownloadURLInstallation(payload)
+		repoFullName = payload.Repositories[0].FullName
 		user = payload.Installation.Account.Login
 		repo = payload.Repositories[0].Name
-		repoNodeID = payload.Repositories[0].NodeID
 	case github.InstallationRepositoriesPayload:
 		log.Info.Println("Received Github InstallationRepositories Event...")
-		log.Info.Println("Starting first time deployment...")
-		downloadURL = getHTTPDownloadURLInstallationRepositories(payload)
+		repoFullName = payload.RepositoriesAdded[0].FullName
 		user = payload.Installation.Account.Login
 		repo = payload.RepositoriesAdded[0].Name
-		repoNodeID = payload.RepositoriesAdded[0].NodeID
 	default:
 		parsedPayload := payload.(github.PushPayload)
-		downloadURL = getHTTPDownloadURLPush(parsedPayload)
+		repoFullName = parsedPayload.Repository.FullName
 		user = parsedPayload.Repository.Owner.Login
 		repo = parsedPayload.Repository.Name
-		repoNodeID = parsedPayload.Repository.NodeID
+		hash = parsedPayload.HeadCommit.ID //Head commit hash
 	}
 
-	compID := worker.ComponentID{User: user, Repo: repo, Hash: repoNodeID}
+	// Get random tar/repo name
+	tarName := guuid.New().String()
+
+	// Get Repo Contents
+	log.Info.Println("Cloning Repo...")
+	clonedPath, err := cloneRepo(repoFullName)
+	if err != nil {
+		log.Error.Println("Error cloning repo:", err)
+		return
+	}
+	defer os.RemoveAll(clonedPath) // clean up
+
+	//If first time installation get hash
+	if hash == "" {
+		//wd, _ := os.Getwd()
+		hash, err = getHash(clonedPath)
+		if err != nil {
+			log.Error.Println("Error getting hash from repo:", err)
+			return
+		}
+	}
+
+	log.Info.Println("Building Component ID")
+	log.Info.Println("User:", user)
+	log.Info.Println("Repo:", repo)
+	log.Info.Println("Hash:", hash)
+	compID := worker.ComponentID{User: user, Repo: repo, Hash: hash}
 
 	// Setup the DB deploying entry
 	err = h.driver.EnterDeploymentEntry(&compID)
@@ -83,23 +105,9 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	// Get random tar name
-	// This is done early to have a unique temporary directory
-	tarName := guuid.New().String()
-
-	// Get Repo Contents
-	log.Info.Println("Downloading Repo...")
-	tempRepoPath := "./git_" + tarName
-	err = downloadRepo(downloadURL, tempRepoPath)
-	if err != nil {
-		log.Error.Println("Error downloading repo:", err)
-		return
-	}
-	defer os.RemoveAll(tempRepoPath)
-
 	// Build image
 	log.Info.Println("Building image from Dockerfile...")
-	err = buildImageFromDockerfile(tarName, tempRepoPath)
+	err = buildImageFromDockerfile(tarName, clonedPath)
 	if err != nil {
 		log.Error.Println("Error building image from Dockerfile", err)
 		return
