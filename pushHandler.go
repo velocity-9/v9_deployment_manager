@@ -3,18 +3,19 @@ package main
 import (
 	"net/http"
 	"os"
-	"v9_deployment_manager/database"
+	"v9_deployment_manager/activator"
+	//	"v9_deployment_manager/database"
 	"v9_deployment_manager/log"
 	"v9_deployment_manager/worker"
 
-	guuid "github.com/google/uuid"
 	"github.com/hjaensch7/webhooks/github"
 )
 
 type pushHandler struct {
 	workers []*worker.V9Worker
 	counter int
-	driver  *database.Driver
+	//	driver    *database.Driver
+	activator *activator.Activator
 }
 
 func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -40,7 +41,6 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Declare repo info vars
-	var repoFullName string
 	var user string
 	var repo string
 	var hash = ""
@@ -48,23 +48,32 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch payload := payload.(type) {
 	case github.InstallationPayload:
 		log.Info.Println("Received Github App Installation Event...")
-		repoFullName = payload.Repositories[0].FullName
 		user = payload.Installation.Account.Login
 		repo = payload.Repositories[0].Name
+		hash = "HEAD"
 	case github.InstallationRepositoriesPayload:
 		log.Info.Println("Received Github InstallationRepositories Event...")
-		repoFullName = payload.RepositoriesAdded[0].FullName
 		user = payload.Installation.Account.Login
 		repo = payload.RepositoriesAdded[0].Name
+		hash = "HEAD"
 	default:
 		parsedPayload := payload.(github.PushPayload)
-		repoFullName = parsedPayload.Repository.FullName
 		user = parsedPayload.Repository.Owner.Login
 		repo = parsedPayload.Repository.Name
 		hash = parsedPayload.HeadCommit.ID //Head commit hash
 	}
+	compID := worker.ComponentID{User: user, Repo: repo, Hash: hash}
 
-	// Get random tar/repo name
+	// Call deactivate to remove running component
+	worker.DeactivateComponentEverywhere(compID, h.workers)
+
+	err = h.activator.Activate(&compID, targetWorker)
+	if err != nil {
+		log.Error.Println("Error activating worker", err)
+		return
+	}
+
+	/*// Get random tar/repo name
 	tarName := guuid.New().String()
 
 	// Get Repo Contents
@@ -130,13 +139,5 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Error.Println("Error copying to worker", err)
 		return
 	}
-
-	// Call deactivate to remove running component
-	worker.DeactivateComponentEverywhere(compID, h.workers)
-
-	err = targetWorker.Activate(compID, destination)
-	if err != nil {
-		log.Error.Println("Error activating worker", err)
-		return
-	}
+	*/
 }
