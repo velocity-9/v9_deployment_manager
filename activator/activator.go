@@ -1,8 +1,9 @@
 package activator
 
 import (
-	guuid "github.com/google/uuid"
 	"os"
+
+	guuid "github.com/google/uuid"
 
 	"v9_deployment_manager/database"
 	"v9_deployment_manager/log"
