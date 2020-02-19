@@ -14,10 +14,10 @@ type Activator struct {
 	driver *database.Driver
 }
 
-func CreateActivator(driver *database.Driver) (*Activator, error) {
+func CreateActivator(driver *database.Driver) *Activator {
 	return &Activator{
 		driver: driver,
-	}, nil
+	}
 }
 
 func (a *Activator) Activate(compID *worker.ComponentID, worker *worker.V9Worker) error {
@@ -25,7 +25,7 @@ func (a *Activator) Activate(compID *worker.ComponentID, worker *worker.V9Worker
 	tarName := guuid.New().String()
 	fullRepoName := compID.User + "/" + compID.Repo
 	// Get Repo Contents
-	log.Info.Println("Cloning Repo...")
+	log.Info.Println("Cloning " + compID.Repo + "...")
 	clonedPath, err := cloneRepo(fullRepoName)
 	if err != nil {
 		log.Error.Println("Error cloning repo:", err)

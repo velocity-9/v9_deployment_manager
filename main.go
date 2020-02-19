@@ -51,11 +51,7 @@ func main() {
 
 	database.StartPollingPopulator(workers, time.Second*3, driver)
 
-	activator, activatorErr := activator.CreateActivator(driver)
-	if activatorErr != nil {
-		log.Error.Println("Error creating activator", activatorErr)
-		return
-	}
+	activator := activator.CreateActivator(driver)
 
 	http.Handle("/payload", &pushHandler{workers: workers, counter: 0, activator: activator})
 	log.Info.Println("Starting Server...")
