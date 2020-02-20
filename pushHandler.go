@@ -61,8 +61,71 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	compID := worker.ComponentID{User: user, Repo: repo, Hash: hash}
 
+	// Get random tar name
+	tarName := guuid.New().String()
+	fullRepoName := compID.User + "/" + compID.Repo
+	// Get Repo Contents
+	log.Info.Println("Cloning " + compID.Repo + "...")
+	clonedPath, err := cloneRepo(fullRepoName)
+	if err != nil {
+		log.Error.Println("Error cloning repo:", err)
+		return err
+	}
+	defer os.RemoveAll(clonedPath) // clean up
+
+	err = checkoutHead(clonedPath)
+	if err != nil {
+		log.Error.Println("Ding dong the witch is dead", err)
+	}
+	if compID.Hash == "HEAD" {
+		compID.Hash, err = getHash(clonedPath)
+		if err != nil {
+			log.Error.Println("Error getting hash from repo:", err)
+			return err
+		}
+	}
+	// Setup the DB deploying entry
+	err = h.driver.EnterDeploymentEntry(compID)
+	if err != nil {
+		log.Error.Println("Error starting deploy using db:", err)
+		return err
+	}
+	defer func() {
+		purgeErr := h.driver.PurgeDeploymentEntry(compID)
+		if purgeErr != nil {
+			log.Error.Println("Error purging deployment entry:", purgeErr)
+		}
+	}()
+
+	// Build image
+	log.Info.Println("Building image from Dockerfile...")
+	err = buildImageFromDockerfile(tarName, clonedPath)
+	if err != nil {
+		log.Error.Println("Error building image from Dockerfile", err)
+		return err
+	}
+
+	// Build and Zip Tar
+	log.Info.Println("Building and zipping tar...")
+	tarNameExt, err := buildAndZipTar(tarName)
+	if err != nil {
+		log.Error.Println("Failed to build and compress tar", err)
+		return err
+	}
+	defer os.Remove("./" + tarNameExt)
+
+	// Send .tar to worker
+	log.Info.Println("SCP tar to worker...")
+	source := "./" + tarNameExt
+	destination := "/home/ubuntu/" + tarNameExt
+	err = scpToWorker(worker.URL, source, destination, tarNameExt)
+	if err != nil {
+		log.Error.Println("Error copying to worker", err)
+		return err
+	}
+
 	// Call deactivate to remove running component
-	worker.DeactivateComponentEverywhere(compID, h.workers)
+	worker.DeactivateComponentEverywhere(compID, a.workers)
 
 	err = h.activator.Activate(&compID, targetWorker)
 	if err != nil {
