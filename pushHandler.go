@@ -127,7 +127,7 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Call deactivate to remove running component
 	worker.DeactivateComponentEverywhere(compID, a.workers)
 
-	err = h.activator.Activate(&compID, targetWorker)
+	err = h.activator.Activate(&compID, targetWorker, destination)
 	if err != nil {
 		log.Error.Println("Error activating worker", err)
 		return

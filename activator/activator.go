@@ -1,10 +1,6 @@
 package activator
 
 import (
-	"os"
-
-	guuid "github.com/google/uuid"
-
 	"v9_deployment_manager/database"
 	"v9_deployment_manager/log"
 	"v9_deployment_manager/worker"
@@ -20,8 +16,8 @@ func CreateActivator(driver *database.Driver) *Activator {
 	}
 }
 
-func (a *Activator) Activate(compID *worker.ComponentID, worker *worker.V9Worker) error {
-	err = worker.Activate(*compID, destination)
+func (a *Activator) Activate(compID *worker.ComponentID, worker *worker.V9Worker, tarLocation string) error {
+	err := worker.Activate(*compID, tarLocation)
 	if err != nil {
 		log.Error.Println("Error activating worker", err)
 		return err
