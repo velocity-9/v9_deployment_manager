@@ -1,4 +1,4 @@
-package activator
+package main
 
 import (
 	"os"

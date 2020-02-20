@@ -3,7 +3,11 @@ package main
 import (
 	"net/http"
 	"os"
+
+	guuid "github.com/google/uuid"
+
 	"v9_deployment_manager/activator"
+	//	"v9_deployment_manager/database"
 	"v9_deployment_manager/log"
 	"v9_deployment_manager/worker"
 
@@ -69,7 +73,7 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	clonedPath, err := cloneRepo(fullRepoName)
 	if err != nil {
 		log.Error.Println("Error cloning repo:", err)
-		return err
+		return
 	}
 	defer os.RemoveAll(clonedPath) // clean up
 
@@ -81,28 +85,15 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		compID.Hash, err = getHash(clonedPath)
 		if err != nil {
 			log.Error.Println("Error getting hash from repo:", err)
-			return err
+			return
 		}
 	}
-	// Setup the DB deploying entry
-	err = h.driver.EnterDeploymentEntry(compID)
-	if err != nil {
-		log.Error.Println("Error starting deploy using db:", err)
-		return err
-	}
-	defer func() {
-		purgeErr := h.driver.PurgeDeploymentEntry(compID)
-		if purgeErr != nil {
-			log.Error.Println("Error purging deployment entry:", purgeErr)
-		}
-	}()
-
 	// Build image
 	log.Info.Println("Building image from Dockerfile...")
 	err = buildImageFromDockerfile(tarName, clonedPath)
 	if err != nil {
 		log.Error.Println("Error building image from Dockerfile", err)
-		return err
+		return
 	}
 
 	// Build and Zip Tar
@@ -110,7 +101,7 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	tarNameExt, err := buildAndZipTar(tarName)
 	if err != nil {
 		log.Error.Println("Failed to build and compress tar", err)
-		return err
+		return
 	}
 	defer os.Remove("./" + tarNameExt)
 
@@ -118,14 +109,14 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Info.Println("SCP tar to worker...")
 	source := "./" + tarNameExt
 	destination := "/home/ubuntu/" + tarNameExt
-	err = scpToWorker(worker.URL, source, destination, tarNameExt)
+	err = scpToWorker(targetWorker.URL, source, destination, tarNameExt)
 	if err != nil {
 		log.Error.Println("Error copying to worker", err)
-		return err
+		return
 	}
 
 	// Call deactivate to remove running component
-	worker.DeactivateComponentEverywhere(compID, a.workers)
+	worker.DeactivateComponentEverywhere(compID, h.workers)
 
 	err = h.activator.Activate(&compID, targetWorker, destination)
 	if err != nil {

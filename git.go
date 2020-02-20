@@ -1,4 +1,4 @@
-package activator
+package main
 
 import (
 	"bytes"
@@ -9,6 +9,12 @@ import (
 
 	"gopkg.in/src-d/go-git.v4"
 )
+
+//Checkout head of specific repo
+func checkoutHead(path string) error {
+	cmd := exec.Command("cd", path+";", "git", "checkout", "HEAD")
+	return cmd.Run()
+}
 
 //Clone repo into temp dir
 func cloneRepo(repoName string) (string, error) {

@@ -17,7 +17,21 @@ func CreateActivator(driver *database.Driver) *Activator {
 }
 
 func (a *Activator) Activate(compID *worker.ComponentID, worker *worker.V9Worker, tarLocation string) error {
-	err := worker.Activate(*compID, tarLocation)
+	// Setup the DB deploying entry
+	err := a.driver.EnterDeploymentEntry(compID)
+	if err != nil {
+		log.Error.Println("Error starting deploy using db:", err)
+		return err
+	}
+	defer func() {
+		purgeErr := a.driver.PurgeDeploymentEntry(compID)
+		if purgeErr != nil {
+			log.Error.Println("Error purging deployment entry:", purgeErr)
+		}
+	}()
+
+	// Activate Component
+	err = worker.Activate(*compID, tarLocation)
 	if err != nil {
 		log.Error.Println("Error activating worker", err)
 		return err
