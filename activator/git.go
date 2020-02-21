@@ -1,4 +1,4 @@
-package main
+package activator
 
 import (
 	"bytes"
@@ -12,7 +12,8 @@ import (
 
 //Checkout head of specific repo
 func checkoutHead(path string) error {
-	cmd := exec.Command("cd", path+";", "git", "checkout", "HEAD")
+	cmd := exec.Command("git", "checkout", "HEAD")
+	cmd.Dir = path
 	return cmd.Run()
 }
 
