@@ -47,3 +47,23 @@ func buildAndZipTar(tarName string) (string, error) {
 	tarNameExt += ".gz"
 	return tarNameExt, nil
 }
+
+func buildComponentBundle(tarName string, clonedPath string) (string, error) {
+	// Build image
+	log.Info.Println("Building image from Dockerfile...")
+	err := buildImageFromDockerfile(tarName, clonedPath)
+	if err != nil {
+		log.Error.Println("Error building image from Dockerfile", err)
+		return "", err
+	}
+
+	// Build and Zip Tar
+	log.Info.Println("Building and zipping tar...")
+	tarNameExt, err := buildAndZipTar(tarName)
+	if err != nil {
+		log.Error.Println("Failed to build and compress tar", err)
+		return "", err
+	}
+	return tarNameExt, nil
+
+}

@@ -46,12 +46,18 @@ func (h *pushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Send to Installation Handler if needed
 	switch payload := payload.(type) {
 	case github.InstallationPayload:
+		if len(payload.Repositories) == 0 {
+			return
+		}
 		log.Info.Println("Received Github App Installation Event...")
 		user = payload.Installation.Account.Login
 		repo = payload.Repositories[0].Name
 	case github.InstallationRepositoriesPayload:
 		log.Info.Println("Received Github InstallationRepositories Event...")
 		user = payload.Installation.Account.Login
+		if len(payload.RepositoriesAdded) == 0 {
+			return
+		}
 		repo = payload.RepositoriesAdded[0].Name
 	default:
 		parsedPayload := payload.(github.PushPayload)

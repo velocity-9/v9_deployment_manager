@@ -23,42 +23,19 @@ func CreateActivator(driver *database.Driver) *Activator {
 func (a *Activator) Activate(compID *worker.ComponentID, worker *worker.V9Worker) error {
 	// Get random tar name
 	tarName := guuid.New().String()
-	fullRepoName := compID.User + "/" + compID.Repo
-	// Get Repo Contents
-	log.Info.Println("Cloning " + compID.Repo + "...")
-	clonedPath, err := cloneRepo(fullRepoName)
+	//Checkout Head and Clone repo update hash if needed
+	clonedPath, err := checkoutHeadAndClone(compID)
 	if err != nil {
-		log.Error.Println("Error cloning repo:", err)
+		log.Error.Println("Error checking out head and cloning", err)
 		return err
 	}
-	defer os.RemoveAll(clonedPath) // clean up
-
-	err = checkoutHead(clonedPath)
+	defer os.RemoveAll(clonedPath)
+	tarNameExt, err := buildComponentBundle(tarName, clonedPath)
 	if err != nil {
-		log.Error.Println("git checkout HEAD failed", err)
-	}
-	if compID.Hash == "HEAD" {
-		compID.Hash, err = getHash(clonedPath)
-		if err != nil {
-			log.Error.Println("Error getting hash from repo:", err)
-			return err
-		}
-	}
-	// Build image
-	log.Info.Println("Building image from Dockerfile...")
-	err = buildImageFromDockerfile(tarName, clonedPath)
-	if err != nil {
-		log.Error.Println("Error building image from Dockerfile", err)
+		log.Error.Println("Error building component bundle", err)
 		return err
 	}
 
-	// Build and Zip Tar
-	log.Info.Println("Building and zipping tar...")
-	tarNameExt, err := buildAndZipTar(tarName)
-	if err != nil {
-		log.Error.Println("Failed to build and compress tar", err)
-		return err
-	}
 	defer os.Remove("./" + tarNameExt)
 
 	// Send .tar to worker
