@@ -1,4 +1,4 @@
-package main
+package activator
 
 import (
 	"bytes"
@@ -6,9 +6,17 @@ import (
 	"os/exec"
 
 	"v9_deployment_manager/log"
+	"v9_deployment_manager/worker"
 
 	"gopkg.in/src-d/go-git.v4"
 )
+
+//Checkout head of specific repo
+func checkoutHead(path string) error {
+	cmd := exec.Command("git", "checkout", "HEAD")
+	cmd.Dir = path
+	return cmd.Run()
+}
 
 //Clone repo into temp dir
 func cloneRepo(repoName string) (string, error) {
@@ -43,4 +51,28 @@ func getHash(repoFilePathAbs string) (string, error) {
 	hash := stdout.String()
 	hash = hash[:len(hash)-1]
 	return hash, err
+}
+
+func checkoutHeadAndClone(compID *worker.ComponentID) (string, error) {
+	fullRepoName := compID.User + "/" + compID.Repo
+	// Get Repo Contents
+	log.Info.Println("Cloning " + compID.Repo + "...")
+	clonedPath, err := cloneRepo(fullRepoName)
+	if err != nil {
+		log.Error.Println("Error cloning repo:", err)
+		return "", err
+	}
+	err = checkoutHead(clonedPath)
+	if err != nil {
+		log.Error.Println("git checkout HEAD failed", err)
+	}
+	if compID.Hash == "HEAD" {
+		compID.Hash, err = getHash(clonedPath)
+		if err != nil {
+			log.Error.Println("Error getting hash from repo:", err)
+			return "", err
+		}
+	}
+	return clonedPath, nil
+
 }

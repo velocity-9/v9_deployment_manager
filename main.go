@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"v9_deployment_manager/activator"
 	"v9_deployment_manager/database"
 	"v9_deployment_manager/log"
 	"v9_deployment_manager/worker"
@@ -50,7 +51,9 @@ func main() {
 
 	database.StartPollingPopulator(workers, time.Second*3, driver)
 
-	http.Handle("/payload", &pushHandler{workers: workers, counter: 0, driver: driver})
+	activator := activator.CreateActivator(driver)
+
+	http.Handle("/payload", &pushHandler{workers: workers, counter: 0, activator: activator})
 	log.Info.Println("Starting Server...")
 	err := http.ListenAndServe(CIPort, nil)
 	if err != nil {
