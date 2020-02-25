@@ -20,4 +20,3 @@ linters:
     - gochecknoinits
     - gochecknoglobals
     - gosec
-    - wsl
