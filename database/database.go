@@ -227,15 +227,14 @@ func (driver *Driver) FindActiveComponents() ([]worker.ComponentPath, error) {
 	return activeComponents, nil
 }
 
-func (driver *Driver) SetComponentStatus(compID worker.ComponentPath, status string) error {
-	updateQuery := `
-	UPDATE components SET deployment_intention = $1
+func (driver *Driver) SetDeploymentIntention(compID worker.ComponentPath, status string) error {
+	updateQuery := `UPDATE components SET deployment_intention = $1
 	FROM users
 	WHERE users.user_id = components.user_id AND users.github_username = $2 AND components.github_repo = $3;`
 
 	_, err := driver.db.Exec(updateQuery, status, compID.User, compID.Repo)
 	if err != nil {
-		return fmt.Errorf("Could not update component status: %w\n", err)
+		return fmt.Errorf("could not update component status: %w", err)
 	}
 	return err
 }
