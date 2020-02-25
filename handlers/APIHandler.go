@@ -12,8 +12,8 @@ import (
 )
 
 type DeploymentIntentionHandler struct {
-	driver        *database.Driver
 	actionManager *deployment.ActionManager
+	driver        *database.Driver
 }
 
 type DeploymentIntentionBody struct {
@@ -21,7 +21,9 @@ type DeploymentIntentionBody struct {
 	NewDeploymentIntention string               `json:"new_deployment_intention"`
 }
 
-func NewDeploymentIntentionHandler(actionManager *deployment.ActionManager, driver *database.Driver) *DeploymentIntentionHandler {
+func NewDeploymentIntentionHandler(
+	actionManager *deployment.ActionManager,
+	driver *database.Driver) *DeploymentIntentionHandler {
 	return &DeploymentIntentionHandler{
 		actionManager: actionManager,
 		driver:        driver,
