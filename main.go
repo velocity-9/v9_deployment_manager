@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
@@ -10,6 +11,8 @@ import (
 	"time"
 	"v9_deployment_manager/activator"
 	"v9_deployment_manager/database"
+	"v9_deployment_manager/deployment"
+	"v9_deployment_manager/handlers"
 	"v9_deployment_manager/log"
 	"v9_deployment_manager/worker"
 
@@ -26,6 +29,9 @@ func main() {
 		CIPort = ":3081"
 		websitePort = ":3080"
 	}
+
+	// Seed the random number generator
+	rand.Seed(time.Now().Unix())
 
 	// Get workers from env
 	workers, envErr := getWorkers()
@@ -49,11 +55,21 @@ func main() {
 		return
 	}
 
+	// We don't want old deploying entries
+	dbErr = driver.PurgeAllDeploymentEntries()
+	if dbErr != nil {
+		log.Error.Println("DB error", dbErr)
+		return
+	}
+
 	database.StartPollingPopulator(workers, time.Second*3, driver)
 
 	activator := activator.CreateActivator(driver)
+	actionManager := deployment.NewActionManager(activator, driver, workers)
+	// State may be dirty when we start
+	actionManager.NotifyComponentStateChanged()
 
-	http.Handle("/payload", &pushHandler{workers: workers, counter: 0, activator: activator})
+	http.Handle("/payload", handlers.NewPushHandler(actionManager, driver))
 	log.Info.Println("Starting Server...")
 	err := http.ListenAndServe(CIPort, nil)
 	if err != nil {

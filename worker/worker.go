@@ -12,6 +12,11 @@ type V9Worker struct {
 	URL string
 }
 
+type ComponentPath struct {
+	User string `json:"user"`
+	Repo string `json:"repo"`
+}
+
 type ComponentID struct {
 	User string `json:"user"`
 	Repo string `json:"repo"`
@@ -57,6 +62,45 @@ type StatusResponse struct {
 	MemoryUsage      float64          `json:"memory_usage"`
 	NetworkUsage     float64          `json:"network_usage"`
 	ActiveComponents []ComponentStats `json:"active_components"`
+}
+
+func contains(l []ComponentPath, v ComponentID) bool {
+	for _, comp := range l {
+		if comp.Repo == v.Repo && comp.User == v.User {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *StatusResponse) FindNonactive(activeComponents []ComponentPath) []ComponentID {
+	var nonActive []ComponentID = make([]ComponentID, 0)
+
+	for _, runningComponent := range s.ActiveComponents {
+		if !contains(activeComponents, runningComponent.ID) {
+			nonActive = append(nonActive, runningComponent.ID)
+		}
+	}
+
+	return nonActive
+}
+
+func (s *StatusResponse) ContainsPath(compPath ComponentPath) bool {
+	for _, runningComponent := range s.ActiveComponents {
+		if runningComponent.ID.User == compPath.User && runningComponent.ID.Repo == compPath.Repo {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *StatusResponse) ContainsExactly(compID ComponentID) bool {
+	for _, runningComponent := range s.ActiveComponents {
+		if runningComponent.ID == compID {
+			return true
+		}
+	}
+	return false
 }
 
 type ComponentLog struct {

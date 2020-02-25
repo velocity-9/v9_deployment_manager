@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"v9_deployment_manager/worker"
 
 	"github.com/google/uuid"
@@ -182,4 +183,43 @@ func (driver *Driver) PurgeDeploymentEntry(compID *worker.ComponentID) error {
 	}
 
 	return nil
+}
+
+func (driver *Driver) PurgeAllDeploymentEntries() error {
+	deleteQuery := `DELETE FROM v9.public.deploying`
+	_, err := driver.db.Exec(deleteQuery)
+	if err != nil {
+		return fmt.Errorf("could not delete from deploying table: %w", err)
+	}
+
+	return nil
+}
+
+func (driver *Driver) FindActiveComponents() ([]worker.ComponentPath, error) {
+	selectQuery := `SELECT github_username, github_repo FROM v9.public.components c
+    JOIN users u on c.user_id = u.user_id WHERE c.deployment_intention = 'active'`
+
+	rows, err := driver.db.Query(selectQuery)
+	if err != nil {
+		return nil, fmt.Errorf("could not get active components: %w", err)
+	}
+	defer rows.Close()
+
+	activeComponents := make([]worker.ComponentPath, 0)
+	for rows.Next() {
+		var username string
+		var repo string
+
+		if err := rows.Scan(&username, &repo); err != nil {
+			// Check for a scan error.
+			// Query rows will be closed with defer.
+			log.Fatal(err)
+		}
+		activeComponents = append(activeComponents, worker.ComponentPath{
+			User: username,
+			Repo: repo,
+		})
+	}
+
+	return activeComponents, nil
 }
