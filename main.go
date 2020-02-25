@@ -19,6 +19,8 @@ import (
 	_ "github.com/lib/pq"
 )
 
+const databasePollingInterval = time.Second * 3
+
 func main() {
 	//Initialize default ports
 	CIPort := "0.0.0.0:81"
@@ -62,7 +64,7 @@ func main() {
 		return
 	}
 
-	database.StartPollingPopulator(workers, time.Second*3, driver)
+	database.StartPollingPopulator(workers, databasePollingInterval, driver)
 
 	activator := activator.CreateActivator(driver)
 	actionManager := deployment.NewActionManager(activator, driver, workers)

@@ -65,5 +65,4 @@ func buildComponentBundle(tarName string, clonedPath string) (string, error) {
 		return "", err
 	}
 	return tarNameExt, nil
-
 }

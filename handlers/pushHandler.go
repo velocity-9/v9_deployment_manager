@@ -13,13 +13,13 @@ import (
 
 type PushHandler struct {
 	actionManager *deployment.ActionManager
-	driver *database.Driver
+	driver        *database.Driver
 }
 
 func NewPushHandler(actionManager *deployment.ActionManager, driver *database.Driver) *PushHandler {
 	handler := PushHandler{
 		actionManager: actionManager,
-		driver: driver,
+		driver:        driver,
 	}
 
 	return &handler

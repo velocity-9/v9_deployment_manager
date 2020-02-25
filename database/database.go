@@ -149,7 +149,6 @@ func (driver *Driver) InsertLog(workerID string, compLog worker.ComponentLog) er
 		return fmt.Errorf("error doing final log database update: %w", err)
 	}
 	return err
-
 }
 
 func (driver *Driver) EnterDeploymentEntry(compID *worker.ComponentID) error {
@@ -210,7 +209,7 @@ func (driver *Driver) FindActiveComponents() ([]worker.ComponentPath, error) {
 		var username string
 		var repo string
 
-		if err := rows.Scan(&username, &repo); err != nil {
+		if err = rows.Scan(&username, &repo); err != nil {
 			// Check for a scan error.
 			// Query rows will be closed with defer.
 			log.Fatal(err)
@@ -219,6 +218,10 @@ func (driver *Driver) FindActiveComponents() ([]worker.ComponentPath, error) {
 			User: username,
 			Repo: repo,
 		})
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return activeComponents, nil

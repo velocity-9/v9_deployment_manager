@@ -9,6 +9,7 @@ import (
 	"v9_deployment_manager/worker"
 )
 
+const headHashSentinel = "HEAD"
 const updaterChanSize = 1024
 
 type ActionManager struct {
@@ -24,14 +25,14 @@ type ActionManager struct {
 	dirtyStateNotifier chan struct{}
 }
 
-func NewActionManager(activator *activator.Activator, driver *database.Driver, workers []*worker.V9Worker) *ActionManager {
+func NewActionManager(activator *activator.Activator, dr *database.Driver, workers []*worker.V9Worker) *ActionManager {
 	pathHashes := make(map[worker.ComponentPath]string)
 
 	pathHashUpdater := make(chan worker.ComponentID, updaterChanSize)
 	dirtyStateNotifier := make(chan struct{}, 1)
 
 	mgr := &ActionManager{
-		driver: driver,
+		driver: dr,
 
 		activator: activator,
 		workers:   workers,
@@ -61,7 +62,7 @@ func NewActionManager(activator *activator.Activator, driver *database.Driver, w
 	go func() {
 		for {
 			// Whenever we get a dirty state notification
-			_ = <- mgr.dirtyStateNotifier
+			<-mgr.dirtyStateNotifier
 			err := mgr.HandleDirtyState()
 			if err != nil {
 				log.Error.Println("Could not manage components:", err)
@@ -72,20 +73,19 @@ func NewActionManager(activator *activator.Activator, driver *database.Driver, w
 	return mgr
 }
 
-func(mgr *ActionManager) NotifyComponentStateChanged() {
+func (mgr *ActionManager) NotifyComponentStateChanged() {
 	// Put something in the `dirtyStateNotifier` -- unless someone else already notified that the state was dirty
 	select {
 	case mgr.dirtyStateNotifier <- struct{}{}:
 	default:
 	}
-
 }
 
-func(mgr *ActionManager) UpdateComponentHash(compID worker.ComponentID) {
+func (mgr *ActionManager) UpdateComponentHash(compID worker.ComponentID) {
 	mgr.pathHashUpdater <- compID
 }
 
-func(mgr *ActionManager) HandleDirtyState() error {
+func (mgr *ActionManager) HandleDirtyState() error {
 	// TODO: Parallelize this step (it basically single threads the deployment manager at the moment)
 
 	// TODO: Smarter error handling
@@ -113,15 +113,19 @@ func(mgr *ActionManager) HandleDirtyState() error {
 	// start things that should be running somewhere but are not
 	log.Info.Println("Starting active but not running components")
 	for _, activeComp := range active {
-		var hashToDeploy = "HEAD"
+		var hashToDeploy = headHashSentinel
 		if mapHash, ok := mgr.pathHashes[activeComp]; ok {
 			hashToDeploy = mapHash
 		}
+
 		err = mgr.activateMissing(worker.ComponentID{
 			User: activeComp.User,
 			Repo: activeComp.Repo,
 			Hash: hashToDeploy,
 		})
+		if err != nil {
+			return err
+		}
 	}
 
 	// ensure that, for each component, there is a worker running the latest version
@@ -167,7 +171,7 @@ func(mgr *ActionManager) HandleDirtyState() error {
 	return nil
 }
 
-func(mgr *ActionManager) deactivateNonactive(w *worker.V9Worker, active []worker.ComponentPath) error {
+func (mgr *ActionManager) deactivateNonactive(w *worker.V9Worker, active []worker.ComponentPath) error {
 	status, err := w.Status()
 	if err != nil {
 		return err
@@ -186,7 +190,7 @@ func(mgr *ActionManager) deactivateNonactive(w *worker.V9Worker, active []worker
 	return nil
 }
 
-func(mgr *ActionManager) activateMissing(toCheck worker.ComponentID) error {
+func (mgr *ActionManager) activateMissing(toCheck worker.ComponentID) error {
 	path := worker.ComponentPath{
 		User: toCheck.User,
 		Repo: toCheck.Repo,
@@ -213,7 +217,7 @@ func(mgr *ActionManager) activateMissing(toCheck worker.ComponentID) error {
 	}
 
 	// Update the relevant hash (if we're using HEAD) so the map will match in the update step
-	if toCheck.Hash == "HEAD" {
+	if toCheck.Hash == headHashSentinel {
 		mgr.pathHashes[worker.ComponentPath{
 			User: toCheck.User,
 			Repo: toCheck.Repo,
@@ -269,14 +273,14 @@ func (mgr *ActionManager) ensureSomeWorkerIsRunning(compID worker.ComponentID) e
 	}
 
 	// Update the hash we're storing if we had HEAD
-	if compID.Hash == "HEAD" {
+	if compID.Hash == headHashSentinel {
 		mgr.pathHashes[compPath] = deployedHash
 	}
 
 	return nil
 }
 
-func(mgr *ActionManager) deactivateIfHashDiffers(w *worker.V9Worker, compID worker.ComponentID) error {
+func (mgr *ActionManager) deactivateIfHashDiffers(w *worker.V9Worker, compID worker.ComponentID) error {
 	status, err := w.Status()
 	if err != nil {
 		return err

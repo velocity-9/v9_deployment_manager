@@ -74,7 +74,7 @@ func contains(l []ComponentPath, v ComponentID) bool {
 }
 
 func (s *StatusResponse) FindNonactive(activeComponents []ComponentPath) []ComponentID {
-	var nonActive []ComponentID = make([]ComponentID, 0)
+	var nonActive = make([]ComponentID, 0)
 
 	for _, runningComponent := range s.ActiveComponents {
 		if !contains(activeComponents, runningComponent.ID) {
