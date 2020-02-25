@@ -72,6 +72,7 @@ func main() {
 	actionManager.NotifyComponentStateChanged()
 
 	http.Handle("/payload", handlers.NewPushHandler(actionManager, driver))
+	http.Handle("/api", handlers.NewAPIHandler(actionManager, driver))
 	log.Info.Println("Starting Server...")
 	err := http.ListenAndServe(CIPort, nil)
 	if err != nil {
