@@ -235,7 +235,7 @@ func (driver *Driver) SetComponentStatus(compID worker.ComponentPath, status str
 
 	_, err := driver.db.Exec(updateQuery, status, compID.User, compID.Repo)
 	if err != nil {
-		return fmt.Errorf("Could not update component status: %w", err)
+		return fmt.Errorf("Could not update component status: %w\n", err)
 	}
 	return err
 }
