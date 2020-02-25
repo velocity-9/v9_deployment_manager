@@ -19,6 +19,5 @@ linters:
     - funlen
     - gochecknoinits
     - gochecknoglobals
-    - godox
     - gosec
     - wsl
