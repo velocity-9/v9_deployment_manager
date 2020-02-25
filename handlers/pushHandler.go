@@ -49,7 +49,7 @@ func (h *PushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Declare repo info vars
 	var user string
 	var repo string
-	var hash = "HEAD"
+	const hash = "HEAD"
 	// Send to Installation Handler if needed
 	switch payload := payload.(type) {
 	case github.InstallationPayload:
@@ -70,7 +70,8 @@ func (h *PushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		parsedPayload := payload.(github.PushPayload)
 		user = parsedPayload.Repository.Owner.Login
 		repo = parsedPayload.Repository.Name
-		hash = parsedPayload.HeadCommit.ID
+		// NOTE: We don't know that the branch is correct, so we can't trust the head commit
+		//hash = parsedPayload.HeadCommit.ID
 
 		compID := worker.ComponentID{User: user, Repo: repo, Hash: hash}
 		h.processComponentEvent(compID)

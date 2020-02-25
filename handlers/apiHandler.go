@@ -11,33 +11,33 @@ import (
 	"v9_deployment_manager/worker"
 )
 
-type DeploymentIntentionHandler struct {
+type SetDeploymentIntentionHandler struct {
 	actionManager *deployment.ActionManager
 	driver        *database.Driver
 }
 
-type DeploymentIntentionBody struct {
+type SetDeploymentIntentionBody struct {
 	ID                     worker.ComponentPath `json:"id"`
 	NewDeploymentIntention string               `json:"new_deployment_intention"`
 }
 
 func NewDeploymentIntentionHandler(
 	actionManager *deployment.ActionManager,
-	driver *database.Driver) *DeploymentIntentionHandler {
-	return &DeploymentIntentionHandler{
+	driver *database.Driver) *SetDeploymentIntentionHandler {
+	return &SetDeploymentIntentionHandler{
 		actionManager: actionManager,
 		driver:        driver,
 	}
 }
 
-func (h *DeploymentIntentionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *SetDeploymentIntentionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Parse Body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Error.Println("Error reading body", err)
 	}
 	log.Info.Println(string(body))
-	var p DeploymentIntentionBody
+	var p SetDeploymentIntentionBody
 	err = json.Unmarshal(body, &p)
 	if err != nil {
 		log.Error.Println("Failed to unmarshal body", err)
@@ -54,5 +54,8 @@ func (h *DeploymentIntentionHandler) ServeHTTP(w http.ResponseWriter, r *http.Re
 	h.actionManager.NotifyComponentStateChanged()
 	// Send Response
 
-	fmt.Fprintf(w, "10/4 Good Buddy")
+	_, err = fmt.Fprintf(w, "10/4 Good Buddy")
+	if err != nil {
+		log.Error.Println("Failed to write back that everything worked", err)
+	}
 }
