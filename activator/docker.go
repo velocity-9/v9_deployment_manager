@@ -21,7 +21,7 @@ func buildTarFromImage(tarName string) error {
 
 // GZip tar
 func gzipTar(tarName string) error {
-	cmd := exec.Command("gzip", tarName)
+	cmd := exec.Command("pigz", tarName)
 	cmd.Stdout = os.Stdout
 	return cmd.Run()
 }

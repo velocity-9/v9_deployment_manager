@@ -52,7 +52,7 @@ func (driver *Driver) FindComponentID(compID *worker.ComponentID) (string, error
 	// This ensures that the component_id is actually returned no matter what
 	upsertQuery := `INSERT INTO v9.public.components(user_id, github_repo, deployment_intention) VALUES ($1, $2, $3)
 	ON CONFLICT (user_id, github_repo) DO UPDATE SET github_repo = $2 RETURNING component_id`
-	err = driver.db.QueryRow(upsertQuery, userID, compID.Repo, "active").Scan(&compDBID)
+	err = driver.db.QueryRow(upsertQuery, userID, compID.Repo, "not_a_component").Scan(&compDBID)
 
 	if err != nil {
 		return "", fmt.Errorf("could not find/create component in database: %w", err)
