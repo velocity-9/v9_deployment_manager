@@ -76,6 +76,52 @@ func (driver *Driver) FindWorkerID(workerName string) (string, error) {
 	return workerID, nil
 }
 
+func (driver *Driver) SetWorkerRunningComponents(workerID string, compIDs []worker.ComponentID) error {
+	var dbCIDs = make([]string, 0)
+
+	for _, id := range compIDs {
+		var baseID = id
+		dbCID, err := driver.FindComponentID(&baseID)
+		if err != nil {
+			return err
+		}
+		dbCIDs = append(dbCIDs, dbCID)
+	}
+
+	tx, err := driver.db.Begin()
+	if err != nil {
+		return err
+	}
+
+	// First drop the data (but this won't be committed until the Tx finishes)
+	dropStr := `DELETE FROM v9.public.currently_running WHERE worker_id = $1`
+	_, err = tx.Exec(dropStr, workerID)
+	if err != nil {
+		// Can't do anything useful with a rollback error here -- we've probably a;ready seen the problem
+		_ = tx.Rollback()
+		return err
+	}
+
+	// Then insert each new row
+	for i, cID := range dbCIDs {
+		insertStr := `INSERT INTO v9.public.currently_running(worker_id, component_id, hash) VALUES ($1, $2, $3)`
+		_, err = tx.Exec(insertStr, workerID, cID, compIDs[i].Hash)
+		if err != nil {
+			// Can't do anything useful with a rollback error here -- we've probably a;ready seen the problem
+			_ = tx.Rollback()
+			return err
+		}
+	}
+
+	// Then commit the transaction
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (driver *Driver) InsertStats(workerID string, componentStatus worker.ComponentStats) error {
 	compID, err := driver.FindComponentID(&componentStatus.ID)
 	if err != nil {
