@@ -41,7 +41,7 @@ func (driver *Driver) FindUserID(githubUsername string) (string, error) {
 	return userID, nil
 }
 
-func (driver *Driver) FindComponentID(compID *worker.ComponentID) (string, error) {
+func (driver *Driver) FindComponentID(compID worker.ComponentID) (string, error) {
 	userID, err := driver.FindUserID(compID.User)
 	if err != nil {
 		return "", err
@@ -80,8 +80,7 @@ func (driver *Driver) SetWorkerRunningComponents(workerID string, compIDs []work
 	var dbCIDs = make([]string, 0)
 
 	for _, id := range compIDs {
-		var baseID = id
-		dbCID, err := driver.FindComponentID(&baseID)
+		dbCID, err := driver.FindComponentID(id)
 		if err != nil {
 			return err
 		}
@@ -123,7 +122,7 @@ func (driver *Driver) SetWorkerRunningComponents(workerID string, compIDs []work
 }
 
 func (driver *Driver) InsertStats(workerID string, componentStatus worker.ComponentStats) error {
-	compID, err := driver.FindComponentID(&componentStatus.ID)
+	compID, err := driver.FindComponentID(componentStatus.ID)
 	if err != nil {
 		return fmt.Errorf("error getting component ID: %w", err)
 	}
@@ -150,7 +149,7 @@ func (driver *Driver) InsertStats(workerID string, componentStatus worker.Compon
 
 // TODO: Refactor to make cleaner
 func (driver *Driver) InsertLog(workerID string, compLog worker.ComponentLog) error {
-	compDBID, err := driver.FindComponentID(&compLog.ID)
+	compDBID, err := driver.FindComponentID(compLog.ID)
 	if err != nil {
 		return fmt.Errorf("error getting comp id for logs: %w", err)
 	}
@@ -197,7 +196,7 @@ func (driver *Driver) InsertLog(workerID string, compLog worker.ComponentLog) er
 	return err
 }
 
-func (driver *Driver) EnterDeploymentEntry(compID *worker.ComponentID) error {
+func (driver *Driver) EnterDeploymentEntry(compID worker.ComponentID) error {
 	compDBID, err := driver.FindComponentID(compID)
 	if err != nil {
 		return err
@@ -215,7 +214,7 @@ func (driver *Driver) EnterDeploymentEntry(compID *worker.ComponentID) error {
 	return nil
 }
 
-func (driver *Driver) PurgeDeploymentEntry(compID *worker.ComponentID) error {
+func (driver *Driver) PurgeDeploymentEntry(compID worker.ComponentID) error {
 	compDBID, err := driver.FindComponentID(compID)
 	if err != nil {
 		return fmt.Errorf("could not get component ID to purge deploying entry: %w", err)

@@ -80,7 +80,7 @@ func (h *PushHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (h *PushHandler) processComponentEvent(compID worker.ComponentID) {
 	// We want to ensure that we have the database stuff for this user built up
-	cID, err := h.driver.FindComponentID(&compID)
+	cID, err := h.driver.FindComponentID(compID)
 	if err != nil {
 		log.Info.Println("Error finding database component id", err)
 	} else {
