@@ -242,7 +242,7 @@ func (mgr *ActionManager) ensureSomeWorkerIsRunning(compID worker.ComponentID) e
 		}
 
 		for _, runningComp := range status.ActiveComponents {
-			// If we find someone running exactly this ID, we have ensured some worker is running this OD
+			// If we find someone running exactly this ID, we have ensured some worker is running this ID
 			if runningComp.ID == compID {
 				return nil
 			}
