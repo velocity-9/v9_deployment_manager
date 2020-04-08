@@ -12,8 +12,8 @@ import (
 )
 
 //Checkout head of specific repo
-func checkoutHead(path string) error {
-	cmd := exec.Command("git", "checkout", "HEAD")
+func checkout(path string, hash string) error {
+	cmd := exec.Command("git", "checkout", hash)
 	cmd.Dir = path
 	return cmd.Run()
 }
@@ -27,6 +27,7 @@ func cloneRepo(repoName string) (string, error) {
 		return "", err
 	}
 
+	// TODO: Don't hardcode Github here
 	_, err = git.PlainClone(dir, false, &git.CloneOptions{
 		URL: "https://github.com/" + repoName + ".git",
 	})
@@ -53,26 +54,36 @@ func getHash(repoFilePathAbs string) (string, error) {
 	return hash, err
 }
 
-func checkoutHeadAndClone(compID *worker.ComponentID) (string, error) {
+type cloneResult struct {
+	path string
+	hash string
+}
+
+func cloneAndSetHash(compID worker.ComponentID) (cloneResult, error) {
 	fullRepoName := compID.User + "/" + compID.Repo
 	// Get Repo Contents
 	log.Info.Println("Cloning " + compID.Repo + "...")
 	clonedPath, err := cloneRepo(fullRepoName)
 	if err != nil {
 		log.Error.Println("Error cloning repo:", err)
-		return "", err
+		return cloneResult{}, err
 	}
-	err = checkoutHead(clonedPath)
+
+	err = checkout(clonedPath, compID.Hash)
 	if err != nil {
 		log.Error.Println("git checkout HEAD failed", err)
 	}
+
 	if compID.Hash == "HEAD" {
 		compID.Hash, err = getHash(clonedPath)
 		if err != nil {
 			log.Error.Println("Error getting hash from repo:", err)
-			return "", err
+			return cloneResult{}, err
 		}
 	}
-	return clonedPath, nil
 
+	return cloneResult{
+		path: clonedPath,
+		hash: compID.Hash,
+	}, nil
 }

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"v9_deployment_manager/worker"
 
 	"github.com/google/uuid"
@@ -40,7 +41,7 @@ func (driver *Driver) FindUserID(githubUsername string) (string, error) {
 	return userID, nil
 }
 
-func (driver *Driver) FindComponentID(compID *worker.ComponentID) (string, error) {
+func (driver *Driver) FindComponentID(compID worker.ComponentID) (string, error) {
 	userID, err := driver.FindUserID(compID.User)
 	if err != nil {
 		return "", err
@@ -51,7 +52,7 @@ func (driver *Driver) FindComponentID(compID *worker.ComponentID) (string, error
 	// This ensures that the component_id is actually returned no matter what
 	upsertQuery := `INSERT INTO v9.public.components(user_id, github_repo, deployment_intention) VALUES ($1, $2, $3)
 	ON CONFLICT (user_id, github_repo) DO UPDATE SET github_repo = $2 RETURNING component_id`
-	err = driver.db.QueryRow(upsertQuery, userID, compID.Repo, "active").Scan(&compDBID)
+	err = driver.db.QueryRow(upsertQuery, userID, compID.Repo, "not_a_component").Scan(&compDBID)
 
 	if err != nil {
 		return "", fmt.Errorf("could not find/create component in database: %w", err)
@@ -75,8 +76,53 @@ func (driver *Driver) FindWorkerID(workerName string) (string, error) {
 	return workerID, nil
 }
 
+func (driver *Driver) SetWorkerRunningComponents(workerID string, compIDs []worker.ComponentID) error {
+	var dbCIDs = make([]string, 0)
+
+	for _, id := range compIDs {
+		dbCID, err := driver.FindComponentID(id)
+		if err != nil {
+			return err
+		}
+		dbCIDs = append(dbCIDs, dbCID)
+	}
+
+	tx, err := driver.db.Begin()
+	if err != nil {
+		return err
+	}
+
+	// First drop the data (but this won't be committed until the Tx finishes)
+	dropStr := `DELETE FROM v9.public.currently_running WHERE worker_id = $1`
+	_, err = tx.Exec(dropStr, workerID)
+	if err != nil {
+		// Can't do anything useful with a rollback error here -- we've probably a;ready seen the problem
+		_ = tx.Rollback()
+		return err
+	}
+
+	// Then insert each new row
+	for i, cID := range dbCIDs {
+		insertStr := `INSERT INTO v9.public.currently_running(worker_id, component_id, hash) VALUES ($1, $2, $3)`
+		_, err = tx.Exec(insertStr, workerID, cID, compIDs[i].Hash)
+		if err != nil {
+			// Can't do anything useful with a rollback error here -- we've probably a;ready seen the problem
+			_ = tx.Rollback()
+			return err
+		}
+	}
+
+	// Then commit the transaction
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (driver *Driver) InsertStats(workerID string, componentStatus worker.ComponentStats) error {
-	compID, err := driver.FindComponentID(&componentStatus.ID)
+	compID, err := driver.FindComponentID(componentStatus.ID)
 	if err != nil {
 		return fmt.Errorf("error getting component ID: %w", err)
 	}
@@ -103,7 +149,7 @@ func (driver *Driver) InsertStats(workerID string, componentStatus worker.Compon
 
 // TODO: Refactor to make cleaner
 func (driver *Driver) InsertLog(workerID string, compLog worker.ComponentLog) error {
-	compDBID, err := driver.FindComponentID(&compLog.ID)
+	compDBID, err := driver.FindComponentID(compLog.ID)
 	if err != nil {
 		return fmt.Errorf("error getting comp id for logs: %w", err)
 	}
@@ -148,10 +194,9 @@ func (driver *Driver) InsertLog(workerID string, compLog worker.ComponentLog) er
 		return fmt.Errorf("error doing final log database update: %w", err)
 	}
 	return err
-
 }
 
-func (driver *Driver) EnterDeploymentEntry(compID *worker.ComponentID) error {
+func (driver *Driver) EnterDeploymentEntry(compID worker.ComponentID) error {
 	compDBID, err := driver.FindComponentID(compID)
 	if err != nil {
 		return err
@@ -169,7 +214,7 @@ func (driver *Driver) EnterDeploymentEntry(compID *worker.ComponentID) error {
 	return nil
 }
 
-func (driver *Driver) PurgeDeploymentEntry(compID *worker.ComponentID) error {
+func (driver *Driver) PurgeDeploymentEntry(compID worker.ComponentID) error {
 	compDBID, err := driver.FindComponentID(compID)
 	if err != nil {
 		return fmt.Errorf("could not get component ID to purge deploying entry: %w", err)
@@ -182,4 +227,59 @@ func (driver *Driver) PurgeDeploymentEntry(compID *worker.ComponentID) error {
 	}
 
 	return nil
+}
+
+func (driver *Driver) PurgeAllDeploymentEntries() error {
+	deleteQuery := `DELETE FROM v9.public.deploying`
+	_, err := driver.db.Exec(deleteQuery)
+	if err != nil {
+		return fmt.Errorf("could not delete from deploying table: %w", err)
+	}
+
+	return nil
+}
+
+func (driver *Driver) FindActiveComponents() ([]worker.ComponentPath, error) {
+	selectQuery := `SELECT github_username, github_repo FROM v9.public.components c
+    JOIN users u on c.user_id = u.user_id WHERE c.deployment_intention = 'active'`
+
+	rows, err := driver.db.Query(selectQuery)
+	if err != nil {
+		return nil, fmt.Errorf("could not get active components: %w", err)
+	}
+	defer rows.Close()
+
+	activeComponents := make([]worker.ComponentPath, 0)
+	for rows.Next() {
+		var username string
+		var repo string
+
+		if err = rows.Scan(&username, &repo); err != nil {
+			// Check for a scan error.
+			// Query rows will be closed with defer.
+			log.Fatal(err)
+		}
+		activeComponents = append(activeComponents, worker.ComponentPath{
+			User: username,
+			Repo: repo,
+		})
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return activeComponents, nil
+}
+
+func (driver *Driver) SetDeploymentIntention(compID worker.ComponentPath, status string) error {
+	updateQuery := `UPDATE components SET deployment_intention = $1
+	FROM users
+	WHERE users.user_id = components.user_id AND users.github_username = $2 AND components.github_repo = $3;`
+
+	_, err := driver.db.Exec(updateQuery, status, compID.User, compID.Repo)
+	if err != nil {
+		return fmt.Errorf("could not update component status: %w", err)
+	}
+	return err
 }

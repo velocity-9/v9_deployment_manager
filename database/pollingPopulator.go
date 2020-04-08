@@ -35,12 +35,22 @@ func (populator *PollingPopulator) pollWorkersToDatabase() {
 
 		// TODO: Clear out old stats
 
+		// Keep track of what components are running
+		runningComps := make([]worker.ComponentID, 0)
 		for _, componentStats := range status.ActiveComponents {
+			runningComps = append(runningComps, componentStats.ID)
+
 			err = populator.driver.InsertStats(workerIDs[i], componentStats)
 			if err != nil {
 				log.Warning.Println("error inserting stats in database:", err)
 			}
 			continue
+		}
+
+		// Update the running components table
+		err = populator.driver.SetWorkerRunningComponents(workerIDs[i], runningComps)
+		if err != nil {
+			log.Warning.Println("error setting running components:", err)
 		}
 	}
 
