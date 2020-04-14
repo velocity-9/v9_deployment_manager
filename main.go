@@ -71,6 +71,9 @@ func main() {
 	// State may be dirty when we start
 	actionManager.NotifyComponentStateChanged()
 
+	//Start Auto Scaler
+	deployment.AutoScaler(actionManager, driver, workers, Time.Second*4)
+
 	http.Handle("/payload", handlers.NewPushHandler(actionManager, driver))
 	http.Handle("/api/set_deployment_intention", handlers.NewDeploymentIntentionHandler(actionManager, driver))
 	log.Info.Println("Starting Server...")
