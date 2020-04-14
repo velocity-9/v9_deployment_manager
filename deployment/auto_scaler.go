@@ -19,8 +19,8 @@ type ComponentStatAndInstances struct {
 	averageStats worker.ComponentStats
 }
 
-var MAX_HITS = 100.0
-var MIN_HITS = 15.0
+var MaxHits = 100.0
+var MinHits = 15.0
 
 func (scaler *AutoScaler) AutoScale() {
 	//Get formatted worker ids
@@ -65,13 +65,13 @@ func (scaler *AutoScaler) AutoScale() {
 		repo := stats.averageStats.ID.Repo
 		log.Info.Println("repo: ", repo, "hits: ", hits)
 		//Evaluate if scaling up is needed
-		if stats.averageStats.Hits > MAX_HITS {
+		if stats.averageStats.Hits > MaxHits {
 			//FIXME Update num instances in db
 			//scaler.actionManager.NotifyComponentStateChanged()
 			log.Info.Println("NEED MOAR POWERRR")
 		}
 		//Evaluate if scaling down is needed
-		if stats.numInstances > 1 && stats.averageStats.Hits < MIN_HITS {
+		if stats.numInstances > 1 && stats.averageStats.Hits < MinHits {
 			//FIXME Update num instances in db
 			//scaler.actionManager.NotifyComponentStateChanged()
 			log.Info.Println("I shud prolly scale DOWN repo: ", repo, "instances: ", stats.numInstances)
