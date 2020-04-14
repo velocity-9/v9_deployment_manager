@@ -20,7 +20,7 @@ import (
 )
 
 const databasePollingInterval = time.Second * 3
-const autoScalerPollingInterval = time.Second * 10
+const autoScalerPollingInterval = time.Second * 15
 
 func main() {
 	//Initialize default ports
