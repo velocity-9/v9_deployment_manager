@@ -55,15 +55,15 @@ func (scaler *AutoScaler) AutoScale() {
 					compMap[hash].averageStats.Hits += componentStats.Hits
 					compMap[hash].averageStats.Hits /= float64(compMap[hash].numInstances)
 				} else {
-					compMap[hash].numInstances = 1
-					compMap[hash].averageStats = componentStats
+					compMap[hash] = &ComponentStatAndInstances{1, componentStats}
 				}
 			}
 		}
 
 		for _, stats := range compMap {
 			hits := stats.averageStats.Hits
-			log.Info.Println("hits: ", hits)
+			repo := stats.averageStats.ID.Repo
+			log.Info.Println("repo: ", repo, "hits: ", hits)
 			//Evaluate if scaling up is needed
 			if stats.averageStats.Hits > MAX_HITS {
 				//FIXME Update num instances in db
@@ -74,7 +74,7 @@ func (scaler *AutoScaler) AutoScale() {
 			if stats.numInstances > 1 && stats.averageStats.Hits < MIN_HITS {
 				//FIXME Update num instances in db
 				//scaler.actionManager.NotifyComponentStateChanged()
-				log.Info.Println("I shud prolly scale DOWN")
+				log.Info.Println("I shud prolly scale DOWN repo: ", repo, "instances: ", stats.numInstances)
 			}
 		}
 	}

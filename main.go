@@ -20,6 +20,7 @@ import (
 )
 
 const databasePollingInterval = time.Second * 3
+const autoScalerPollingInterval = time.Second * 10
 
 func main() {
 	//Initialize default ports
@@ -72,7 +73,7 @@ func main() {
 	actionManager.NotifyComponentStateChanged()
 
 	//Start Auto Scaler
-	deployment.StartAutoScaler(actionManager, driver, workers, time.Second*4)
+	deployment.StartAutoScaler(actionManager, driver, workers, autoScalerPollingInterval)
 
 	http.Handle("/payload", handlers.NewPushHandler(actionManager, driver))
 	http.Handle("/api/set_deployment_intention", handlers.NewDeploymentIntentionHandler(actionManager, driver))
