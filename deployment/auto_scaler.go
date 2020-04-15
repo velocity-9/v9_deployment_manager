@@ -37,8 +37,37 @@ func (scaler *AutoScaler) AutoScale() {
 	}
 
 	// Collect status of each comp on each worker
+	compMap := getCurrentInstanceState(scaler.workers)
+
+	log.Info.Println("----------------------------")
+	for _, stats := range compMap {
+		hits := stats.averageStats.Hits
+		repo := stats.averageStats.ID.Repo
+		log.Info.Println("repo: ", repo, "hits: ", hits)
+		//Evaluate if scaling up is needed
+		if stats.averageStats.Hits > MaxHits {
+			log.Info.Println("NEED MOAR POWERRR repo: ", repo)
+			scaler.actionManager.updateInstanceCount(worker.ComponentPath{
+				User: stats.averageStats.ID.User,
+				Repo: stats.averageStats.ID.Repo,
+			}, stats.numInstances+1)
+		}
+		//Evaluate if scaling down is needed
+		if stats.numInstances > 1 && stats.averageStats.Hits < MinHits {
+			//FIXME Update num instances in db
+			log.Info.Println("I shud prolly scale DOWN repo: ", repo)
+			scaler.actionManager.updateInstanceCount(worker.ComponentPath{
+				User: stats.averageStats.ID.User,
+				Repo: stats.averageStats.ID.Repo,
+			}, stats.numInstances-1)
+		}
+	}
+}
+
+func getCurrentInstanceState(workers []*worker.V9Worker) map[worker.ComponentID]*ComponentStatAndInstances {
+	// Collect status of each comp on each worker
 	compMap := make(map[worker.ComponentID]*ComponentStatAndInstances)
-	for _, w := range scaler.workers {
+	for _, w := range workers {
 		status, err := w.Status()
 		if err != nil {
 			log.Warning.Println("error getting worker status:", err)
@@ -58,25 +87,7 @@ func (scaler *AutoScaler) AutoScale() {
 			}
 		}
 	}
-
-	log.Info.Println("----------------------------")
-	for _, stats := range compMap {
-		hits := stats.averageStats.Hits
-		repo := stats.averageStats.ID.Repo
-		log.Info.Println("repo: ", repo, "hits: ", hits)
-		//Evaluate if scaling up is needed
-		if stats.averageStats.Hits > MaxHits {
-			//FIXME Update num instances in db
-			//scaler.actionManager.NotifyComponentStateChanged()
-			log.Info.Println("NEED MOAR POWERRR")
-		}
-		//Evaluate if scaling down is needed
-		if stats.numInstances > 1 && stats.averageStats.Hits < MinHits {
-			//FIXME Update num instances in db
-			//scaler.actionManager.NotifyComponentStateChanged()
-			log.Info.Println("I shud prolly scale DOWN repo: ", repo, "instances: ", stats.numInstances)
-		}
-	}
+	return compMap
 }
 
 func StartAutoScaler(actionManager *ActionManager, driver *database.Driver, workers []*worker.V9Worker, cadence time.Duration) {

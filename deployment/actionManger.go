@@ -12,6 +12,11 @@ import (
 const headHashSentinel = "HEAD"
 const updaterChanSize = 1024
 
+type HashAndInstanceCount struct {
+	hash         string
+	numInstances int
+}
+
 type ActionManager struct {
 	driver *database.Driver
 
@@ -19,14 +24,14 @@ type ActionManager struct {
 	workers   []*worker.V9Worker
 
 	pathHashMux     sync.Mutex
-	pathHashes      map[worker.ComponentPath]string
+	pathHashes      map[worker.ComponentPath]*HashAndInstanceCount
 	pathHashUpdater chan worker.ComponentID
 
 	dirtyStateNotifier chan struct{}
 }
 
 func NewActionManager(activator *activator.Activator, dr *database.Driver, workers []*worker.V9Worker) *ActionManager {
-	pathHashes := make(map[worker.ComponentPath]string)
+	pathHashes := make(map[worker.ComponentPath]*HashAndInstanceCount)
 
 	pathHashUpdater := make(chan worker.ComponentID, updaterChanSize)
 	dirtyStateNotifier := make(chan struct{}, 1)
@@ -52,7 +57,7 @@ func NewActionManager(activator *activator.Activator, dr *database.Driver, worke
 			}
 
 			mgr.pathHashMux.Lock()
-			mgr.pathHashes[path] = updatedID.Hash
+			mgr.pathHashes[path] = &HashAndInstanceCount{updatedID.Hash, 1}
 			mgr.pathHashMux.Unlock()
 
 			mgr.NotifyComponentStateChanged()
@@ -114,8 +119,8 @@ func (mgr *ActionManager) HandleDirtyState() error {
 	log.Info.Println("Starting active but not running components")
 	for _, activeComp := range active {
 		var hashToDeploy = headHashSentinel
-		if mapHash, ok := mgr.pathHashes[activeComp]; ok {
-			hashToDeploy = mapHash
+		if mapVal, ok := mgr.pathHashes[activeComp]; ok {
+			hashToDeploy = mapVal.hash
 		}
 
 		err = mgr.activateMissing(worker.ComponentID{
@@ -136,7 +141,7 @@ func (mgr *ActionManager) HandleDirtyState() error {
 			correctCompID := worker.ComponentID{
 				User: activeComp.User,
 				Repo: activeComp.Repo,
-				Hash: correctHash,
+				Hash: correctHash.hash,
 			}
 			err = mgr.ensureSomeWorkerIsRunning(correctCompID)
 			if err != nil {
@@ -157,13 +162,31 @@ func (mgr *ActionManager) HandleDirtyState() error {
 		correctCompID := worker.ComponentID{
 			User: activeComp.User,
 			Repo: activeComp.Repo,
-			Hash: correctHash,
+			Hash: correctHash.hash,
 		}
 		for _, w := range mgr.workers {
 			err = mgr.deactivateIfHashDiffers(w, correctCompID)
 			if err != nil {
 				return err
 			}
+		}
+	}
+
+	// Scale up or down as requested by autoscaler
+	// TODO this is probably in the wrong place
+	compMap := getCurrentInstanceState(mgr.workers)
+	for _, compStats := range compMap {
+		compPath := worker.ComponentPath{
+			User: compStats.averageStats.ID.User,
+			Repo: compStats.averageStats.ID.Repo,
+		}
+		if compStats.numInstances < mgr.pathHashes[compPath].numInstances {
+			//FIXME deploy another instance
+			continue
+		}
+		if compStats.numInstances > mgr.pathHashes[compPath].numInstances {
+			//FIXME take an instance down
+			continue
 		}
 	}
 
@@ -221,7 +244,7 @@ func (mgr *ActionManager) activateMissing(toCheck worker.ComponentID) error {
 		mgr.pathHashes[worker.ComponentPath{
 			User: toCheck.User,
 			Repo: toCheck.Repo,
-		}] = activatedHash
+		}].hash = activatedHash
 	}
 
 	return nil
@@ -274,7 +297,7 @@ func (mgr *ActionManager) ensureSomeWorkerIsRunning(compID worker.ComponentID) e
 
 	// Update the hash we're storing if we had HEAD
 	if compID.Hash == headHashSentinel {
-		mgr.pathHashes[compPath] = deployedHash
+		mgr.pathHashes[compPath].hash = deployedHash
 	}
 
 	return nil
@@ -297,4 +320,12 @@ func (mgr *ActionManager) deactivateIfHashDiffers(w *worker.V9Worker, compID wor
 	}
 
 	return nil
+}
+
+func (mgr *ActionManager) updateInstanceCount(compPath worker.ComponentPath, instanceCount int) {
+	//Update map with new instanceCount
+	mgr.pathHashes[compPath].numInstances = instanceCount
+	//Notify state change
+	mgr.NotifyComponentStateChanged()
+
 }
