@@ -344,7 +344,7 @@ func (mgr *ActionManager) ensureNWorkerIsRunning(compID worker.ComponentID) erro
 		}
 		return nil
 	}
-	return errors.New("Something weird happened")
+	return errors.New("Something weird happened.")
 }
 
 func (mgr *ActionManager) findWorkerToDeployTo(compID worker.ComponentID) (*worker.V9Worker, error) {
@@ -364,7 +364,7 @@ func (mgr *ActionManager) findWorkerToDeployTo(compID worker.ComponentID) (*work
 			return w, nil
 		}
 	}
-	err := errors.New("Comp on every worker")
+	err := errors.New("Comp on every worker.")
 	return nil, err
 }
 
@@ -385,7 +385,7 @@ func (mgr *ActionManager) findWorkerToDeactivateIOn(compID worker.ComponentID) (
 			return w, nil
 		}
 	}
-	err := errors.New("Comp on no workers")
+	err := errors.New("Comp on no workers.")
 	return nil, err
 }
 
