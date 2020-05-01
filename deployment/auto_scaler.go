@@ -15,8 +15,8 @@ type AutoScaler struct {
 }
 
 type ComponentStatAndInstances struct {
-	numInstances int
-	averageStats worker.ComponentStats
+	instanceCount int
+	averageStats  worker.ComponentStats
 }
 
 var MaxHits = 100.0
@@ -46,20 +46,19 @@ func (scaler *AutoScaler) AutoScale() {
 		log.Info.Println("repo: ", repo, "hits: ", hits)
 		//Evaluate if scaling up is needed
 		if stats.averageStats.Hits > MaxHits {
-			log.Info.Println("NEED MOAR POWERRR repo: ", repo)
-			scaler.actionManager.updateInstanceCount(worker.ComponentPath{
+			log.Info.Println("This repo needs scaling UP repo: ", repo)
+			scaler.actionManager.UpdateInstanceCount(worker.ComponentPath{
 				User: stats.averageStats.ID.User,
 				Repo: stats.averageStats.ID.Repo,
-			}, stats.numInstances+1)
+			}, stats.instanceCount+1)
 		}
 		//Evaluate if scaling down is needed
-		if stats.numInstances > 1 && stats.averageStats.Hits < MinHits {
-			//FIXME Update num instances in db
-			log.Info.Println("I shud prolly scale DOWN repo: ", repo)
-			scaler.actionManager.updateInstanceCount(worker.ComponentPath{
+		if stats.instanceCount > 1 && stats.averageStats.Hits < MinHits {
+			log.Info.Println("This repo needs scaling DOWN repo: ", repo)
+			scaler.actionManager.UpdateInstanceCount(worker.ComponentPath{
 				User: stats.averageStats.ID.User,
 				Repo: stats.averageStats.ID.Repo,
-			}, stats.numInstances-1)
+			}, stats.instanceCount-1)
 		}
 	}
 }
@@ -79,9 +78,9 @@ func getCurrentInstanceState(workers []*worker.V9Worker) map[worker.ComponentID]
 			cID := componentStats.ID
 			if _, ok := compMap[cID]; ok {
 				//If CID already in map then average Hits
-				compMap[cID].numInstances++
+				compMap[cID].instanceCount++
 				compMap[cID].averageStats.Hits += componentStats.Hits
-				compMap[cID].averageStats.Hits /= float64(compMap[cID].numInstances)
+				compMap[cID].averageStats.Hits /= float64(compMap[cID].instanceCount)
 			} else {
 				compMap[cID] = &ComponentStatAndInstances{1, componentStats}
 			}

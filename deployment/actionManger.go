@@ -14,8 +14,13 @@ const headHashSentinel = "HEAD"
 const updaterChanSize = 1024
 
 type HashAndInstanceCount struct {
-	hash         string
-	numInstances int
+	hash          string
+	instanceCount int
+}
+
+type PathAndInstanceCount struct {
+	path          worker.ComponentPath
+	instanceCount int
 }
 
 type ActionManager struct {
@@ -24,9 +29,10 @@ type ActionManager struct {
 	activator *activator.Activator
 	workers   []*worker.V9Worker
 
-	pathHashMux     sync.Mutex
-	pathHashes      map[worker.ComponentPath]*HashAndInstanceCount
-	pathHashUpdater chan worker.ComponentID
+	pathHashMux          sync.Mutex
+	pathHashes           map[worker.ComponentPath]*HashAndInstanceCount
+	pathHashUpdater      chan worker.ComponentID
+	instanceCountUpdater chan PathAndInstanceCount
 
 	dirtyStateNotifier chan struct{}
 }
@@ -35,6 +41,7 @@ func NewActionManager(activator *activator.Activator, dr *database.Driver, worke
 	pathHashes := make(map[worker.ComponentPath]*HashAndInstanceCount)
 
 	pathHashUpdater := make(chan worker.ComponentID, updaterChanSize)
+	instanceCountUpdater := make(chan PathAndInstanceCount, updaterChanSize)
 	dirtyStateNotifier := make(chan struct{}, 1)
 
 	mgr := &ActionManager{
@@ -43,12 +50,13 @@ func NewActionManager(activator *activator.Activator, dr *database.Driver, worke
 		activator: activator,
 		workers:   workers,
 
-		pathHashes:      pathHashes,
-		pathHashUpdater: pathHashUpdater,
+		pathHashes:           pathHashes,
+		pathHashUpdater:      pathHashUpdater,
+		instanceCountUpdater: instanceCountUpdater,
 
 		dirtyStateNotifier: dirtyStateNotifier,
 	}
-
+	//Thread for handling hash changes
 	go func() {
 		for {
 			updatedID := <-pathHashUpdater
@@ -58,7 +66,20 @@ func NewActionManager(activator *activator.Activator, dr *database.Driver, worke
 			}
 
 			mgr.pathHashMux.Lock()
-			mgr.pathHashes[path] = &HashAndInstanceCount{updatedID.Hash, 1}
+			mgr.pathHashes[path].hash = updatedID.Hash
+			mgr.pathHashMux.Unlock()
+
+			mgr.NotifyComponentStateChanged()
+		}
+	}()
+	//Thread for handling instance count changes
+	go func() {
+		for {
+			updatedID := <-instanceCountUpdater
+			path := updatedID.path
+
+			mgr.pathHashMux.Lock()
+			mgr.pathHashes[path].instanceCount = updatedID.instanceCount
 			mgr.pathHashMux.Unlock()
 
 			mgr.NotifyComponentStateChanged()
@@ -89,6 +110,10 @@ func (mgr *ActionManager) NotifyComponentStateChanged() {
 
 func (mgr *ActionManager) UpdateComponentHash(compID worker.ComponentID) {
 	mgr.pathHashUpdater <- compID
+}
+
+func (mgr *ActionManager) UpdateInstanceCount(compPath worker.ComponentPath, instanceCount int) {
+	mgr.instanceCountUpdater <- PathAndInstanceCount{compPath, instanceCount}
 }
 
 func (mgr *ActionManager) HandleDirtyState() error {
@@ -144,7 +169,7 @@ func (mgr *ActionManager) HandleDirtyState() error {
 				Repo: activeComp.Repo,
 				Hash: correctHash.hash,
 			}
-			err = mgr.ensureSomeWorkerIsRunning(correctCompID)
+			err = mgr.ensureNWorkerIsRunning(correctCompID)
 			if err != nil {
 				return err
 			}
@@ -235,59 +260,6 @@ func (mgr *ActionManager) activateMissing(toCheck worker.ComponentID) error {
 	return nil
 }
 
-func (mgr *ActionManager) ensureSomeWorkerIsRunning(compID worker.ComponentID) error {
-	compPath := worker.ComponentPath{
-		User: compID.User,
-		Repo: compID.Repo,
-	}
-
-	notRunningAnyVersion := make([]*worker.V9Worker, 0)
-
-	for _, w := range mgr.workers {
-		status, err := w.Status()
-		if err != nil {
-			return err
-		}
-
-		for _, runningComp := range status.ActiveComponents {
-			// If we find someone running exactly this ID, we have ensured some worker is running this ID
-			if runningComp.ID == compID {
-				return nil
-			}
-		}
-
-		if !status.ContainsPath(compPath) {
-			notRunningAnyVersion = append(notRunningAnyVersion, w)
-		}
-	}
-
-	// If we get here we need to deploy to some worker
-	var workerToDeployTo *worker.V9Worker
-	if len(notRunningAnyVersion) > 0 {
-		workerToDeployTo = notRunningAnyVersion[rand.Intn(len(notRunningAnyVersion))]
-	} else {
-		// If everyone is running it, then we need to create a place to deploy to
-		workerToDeployTo = mgr.workers[rand.Intn(len(mgr.workers))]
-		err := mgr.activator.Deactivate(compID, workerToDeployTo)
-		if err != nil {
-			return err
-		}
-	}
-
-	log.Info.Println("Doing to deploy to ensure", compID, "is on some worker", workerToDeployTo)
-	deployedHash, err := mgr.activator.Activate(compID, workerToDeployTo)
-	if err != nil {
-		return err
-	}
-
-	// Update the hash we're storing if we had HEAD
-	if compID.Hash == headHashSentinel {
-		mgr.pathHashes[compPath].hash = deployedHash
-	}
-
-	return nil
-}
-
 func (mgr *ActionManager) ensureNWorkerIsRunning(compID worker.ComponentID) error {
 	compPath := worker.ComponentPath{
 		User: compID.User,
@@ -298,7 +270,7 @@ func (mgr *ActionManager) ensureNWorkerIsRunning(compID worker.ComponentID) erro
 	compMap := getCurrentInstanceState(mgr.workers)
 	if _, ok := compMap[compID]; ok {
 		//Check if should scale up
-		if compMap[compID].numInstances < mgr.pathHashes[compPath].numInstances {
+		if compMap[compID].instanceCount < mgr.pathHashes[compPath].instanceCount {
 			//Find worker where this comp isn't deployed
 			workerToDeployTo, err := mgr.findWorkerToDeployTo(compID)
 			if err != nil {
@@ -317,9 +289,9 @@ func (mgr *ActionManager) ensureNWorkerIsRunning(compID worker.ComponentID) erro
 			return nil
 		}
 		//Check if should scale down
-		if compMap[compID].numInstances > mgr.pathHashes[compPath].numInstances {
+		if compMap[compID].instanceCount > mgr.pathHashes[compPath].instanceCount {
 			//Find worker where this comp is deployed
-			workerToDeactivateOn, err := mgr.findWorkerToDeactivateIOn(compID)
+			workerToDeactivateOn, err := mgr.findWorkerToDeactivateOn(compID)
 			if err != nil {
 				log.Error.Println("Comp not running on any workers")
 				return nil
@@ -344,7 +316,7 @@ func (mgr *ActionManager) ensureNWorkerIsRunning(compID worker.ComponentID) erro
 		}
 		return nil
 	}
-	return errors.New("Something weird happened.")
+	return errors.New("something weird happened")
 }
 
 func (mgr *ActionManager) findWorkerToDeployTo(compID worker.ComponentID) (*worker.V9Worker, error) {
@@ -364,11 +336,11 @@ func (mgr *ActionManager) findWorkerToDeployTo(compID worker.ComponentID) (*work
 			return w, nil
 		}
 	}
-	err := errors.New("Comp on every worker.")
+	err := errors.New("comp on every worker")
 	return nil, err
 }
 
-func (mgr *ActionManager) findWorkerToDeactivateIOn(compID worker.ComponentID) (*worker.V9Worker, error) {
+func (mgr *ActionManager) findWorkerToDeactivateOn(compID worker.ComponentID) (*worker.V9Worker, error) {
 	for _, w := range mgr.workers {
 		status, err := w.Status()
 		if err != nil {
@@ -385,7 +357,7 @@ func (mgr *ActionManager) findWorkerToDeactivateIOn(compID worker.ComponentID) (
 			return w, nil
 		}
 	}
-	err := errors.New("Comp on no workers.")
+	err := errors.New("comp on no workers")
 	return nil, err
 }
 
@@ -406,12 +378,4 @@ func (mgr *ActionManager) deactivateIfHashDiffers(w *worker.V9Worker, compID wor
 	}
 
 	return nil
-}
-
-func (mgr *ActionManager) updateInstanceCount(compPath worker.ComponentPath, instanceCount int) {
-	//Update map with new instanceCount
-	mgr.pathHashes[compPath].numInstances = instanceCount
-	//Notify state change
-	mgr.NotifyComponentStateChanged()
-
 }
