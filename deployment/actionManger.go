@@ -268,8 +268,9 @@ func (mgr *ActionManager) ensureNWorkerIsRunning(compID worker.ComponentID) erro
 
 	//Get instance states
 	compMap := getCurrentInstanceState(mgr.workers)
+	// Check if the component is deployed on anything
 	if _, ok := compMap[compID]; ok {
-		//Check if should scale up
+		//Check if should scale up current state instance count vs intended count
 		if compMap[compID].instanceCount < mgr.pathHashes[compPath].instanceCount {
 			//Find worker where this comp isn't deployed
 			workerToDeployTo, err := mgr.findWorkerToDeployTo(compID)
@@ -277,46 +278,61 @@ func (mgr *ActionManager) ensureNWorkerIsRunning(compID worker.ComponentID) erro
 				log.Error.Println("Worker deployed on all nodes")
 				return nil
 			}
-			//Deploy to worker
-			deployedHash, err := mgr.activator.Activate(compID, workerToDeployTo)
+			//Deploy component and update hash
+			err = mgr.deployToWorkerAndUpdateHash(workerToDeployTo, compID)
 			if err != nil {
 				return err
 			}
-			// Update the hash we're storing if we had HEAD
-			if compID.Hash == headHashSentinel {
-				mgr.pathHashes[compPath].hash = deployedHash
-			}
 			return nil
 		}
-		//Check if should scale down
+		//Check if should scale down intended count vs actual count
 		if compMap[compID].instanceCount > mgr.pathHashes[compPath].instanceCount {
-			//Find worker where this comp is deployed
-			workerToDeactivateOn, err := mgr.findWorkerToDeactivateOn(compID)
-			if err != nil {
-				log.Error.Println("Comp not running on any workers")
-				return nil
-			}
-			//Deactivate
-			err = mgr.activator.Deactivate(compID, workerToDeactivateOn)
+			//Deactivate component on some worker
+			err := mgr.deactivateComponentOnSomeWorker(compID)
 			if err != nil {
 				return err
 			}
 			return nil
 		}
-	} else {
-		//Deploy a single instance
-		workerToDeployTo := mgr.workers[rand.Intn(len(mgr.workers))]
-		deployedHash, err := mgr.activator.Activate(compID, workerToDeployTo)
-		if err != nil {
-			return err
-		}
-		// Update the hash we're storing if we had HEAD
-		if compID.Hash == headHashSentinel {
-			mgr.pathHashes[compPath].hash = deployedHash
-		}
+	}
+	//First time deploy
+	//Deploy component to a random worker
+	err := mgr.deployToWorkerAndUpdateHash(mgr.workers[rand.Intn(len(mgr.workers))], compID)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (mgr *ActionManager) deployToWorkerAndUpdateHash(w *worker.V9Worker, compID worker.ComponentID) error {
+	compPath := worker.ComponentPath{
+		User: compID.User,
+		Repo: compID.Repo,
+	}
+	deployedHash, err := mgr.activator.Activate(compID, w)
+	if err != nil {
+		return err
+	}
+	// Update the hash we're storing if we had HEAD
+	if compID.Hash == headHashSentinel {
+		mgr.pathHashes[compPath].hash = deployedHash
+	}
+	return nil
+}
+
+func (mgr *ActionManager) deactivateComponentOnSomeWorker(compID worker.ComponentID) error {
+	//Find worker where this comp is deployed
+	workerToDeactivateOn, err := mgr.findWorkerToDeactivateOn(compID)
+	if err != nil {
+		log.Error.Println("Comp not running on any workers")
 		return nil
 	}
-	return errors.New("something weird happened")
+	//Deactivate
+	err = mgr.activator.Deactivate(compID, workerToDeactivateOn)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (mgr *ActionManager) findWorkerToDeployTo(compID worker.ComponentID) (*worker.V9Worker, error) {
