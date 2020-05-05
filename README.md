@@ -1,6 +1,8 @@
 # v9_deployment_manager
 [![CircleCI](https://circleci.com/gh/velocity-9/v9_deployment_manager.svg?style=svg)](https://circleci.com/gh/velocity-9/v9_deployment_manager)
 
+### [Getting Started with Go](https://golang.org/doc/install)
+
 ### Dependencies
 - https://github.com/google/uuid
 - https://github.com/src-d/go-git
