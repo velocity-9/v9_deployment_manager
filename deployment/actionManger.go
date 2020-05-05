@@ -56,6 +56,14 @@ func NewActionManager(activator *activator.Activator, dr *database.Driver, worke
 
 		dirtyStateNotifier: dirtyStateNotifier,
 	}
+	//Populate PathHashes with current system state
+	mgr.pathHashMux.Lock()
+	defer mgr.pathHashMux.Unlock()
+	err := mgr.PopulatePathHashes()
+	if err != nil {
+		log.Error.Println("Could not get current system state")
+	}
+
 	//Thread for handling hash changes
 	go func() {
 		for {
@@ -79,6 +87,7 @@ func NewActionManager(activator *activator.Activator, dr *database.Driver, worke
 			path := updatedID.path
 
 			mgr.pathHashMux.Lock()
+			log.Info.Println("component pathHash:", mgr.pathHashes[path])
 			mgr.pathHashes[path].instanceCount = updatedID.instanceCount
 			mgr.pathHashMux.Unlock()
 
@@ -98,6 +107,19 @@ func NewActionManager(activator *activator.Activator, dr *database.Driver, worke
 	}()
 
 	return mgr
+}
+
+func (mgr *ActionManager) PopulatePathHashes() error {
+	compMap := getCurrentInstanceState(mgr.workers)
+	for compID, compStats := range compMap {
+		tmp := &HashAndInstanceCount{compID.Hash, compStats.instanceCount}
+		mgr.pathHashes[worker.ComponentPath{
+			User: compID.User,
+			Repo: compID.Repo,
+		}] = tmp
+	}
+
+	return nil
 }
 
 func (mgr *ActionManager) NotifyComponentStateChanged() {
@@ -272,6 +294,7 @@ func (mgr *ActionManager) ensureNWorkerIsRunning(compID worker.ComponentID) erro
 	if _, ok := compMap[compID]; ok {
 		//Check if should scale up current state instance count vs intended count
 		if compMap[compID].instanceCount < mgr.pathHashes[compPath].instanceCount {
+			log.Info.Println("SCALING UP:", compID)
 			//Find worker where this comp isn't deployed
 			workerToDeployTo, err := mgr.findWorkerToDeployTo(compID)
 			if err != nil {
@@ -288,6 +311,7 @@ func (mgr *ActionManager) ensureNWorkerIsRunning(compID worker.ComponentID) erro
 		//Check if should scale down intended count vs actual count
 		if compMap[compID].instanceCount > mgr.pathHashes[compPath].instanceCount {
 			//Deactivate component on some worker
+			log.Info.Println("SCALING DOWN:", compID)
 			err := mgr.deactivateComponentOnSomeWorker(compID)
 			if err != nil {
 				return err
@@ -301,6 +325,7 @@ func (mgr *ActionManager) ensureNWorkerIsRunning(compID worker.ComponentID) erro
 	if err != nil {
 		return err
 	}
+	mgr.pathHashes[compPath] = &HashAndInstanceCount{compID.Hash, 1}
 	return nil
 }
 
@@ -313,9 +338,16 @@ func (mgr *ActionManager) deployToWorkerAndUpdateHash(w *worker.V9Worker, compID
 	if err != nil {
 		return err
 	}
-	// Update the hash we're storing if we had HEAD
-	if compID.Hash == headHashSentinel {
-		mgr.pathHashes[compPath].hash = deployedHash
+
+	//If this comp isn't in the map add it
+	if _, ok := mgr.pathHashes[compPath]; ok {
+		// Update the hash we're storing if we had HEAD
+		if compID.Hash == headHashSentinel {
+			mgr.pathHashes[compPath].hash = deployedHash
+		}
+	} else {
+		tmp := &HashAndInstanceCount{deployedHash, 1}
+		mgr.pathHashes[compPath] = tmp
 	}
 	return nil
 }
